@@ -68,3 +68,73 @@ func getRandomLevel() int {
 
 	return level
 }
+
+func (z *zskiplist) insert(score float64, member string, value interface{}) *zslNode {
+	updates := make([]*zslNode, SkipListMaxLvl)
+	rank := make([]uint64, SkipListMaxLvl)
+
+	currentNode := z.head
+	for level := z.level - 1; level >= 0; level-- {
+		if level == z.level-1 {
+			rank[level] = 0
+		} else {
+			rank[level] = rank[level+1]
+		}
+
+		for currentNode.level[level].forward != nil {
+			nextNode := currentNode.level[level].forward
+
+			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
+				rank[level] += currentNode.level[level].span
+			} else {
+				break
+			}
+		}
+
+		updates[level] = currentNode
+	}
+
+	level := getRandomLevel()
+	if level > z.level {
+		for newLevel := z.level; newLevel < level; newLevel++ {
+			rank[newLevel] = 0
+			updates[newLevel] = z.head
+			updates[newLevel].level[newLevel].span = uint64(z.length)
+		}
+
+		z.level = level
+	}
+
+	newNode := &zslNode{
+		score:  score,
+		member: member,
+		value:  value,
+		level:  make([]*zslLevel, level),
+	}
+
+	for currentLevel := 0; currentLevel < level; currentLevel++ {
+		newNode.level[currentLevel].forward = updates[currentLevel].level[currentLevel].forward
+		updates[currentLevel].level[currentLevel].forward = newNode
+		newNode.level[currentLevel].span = updates[currentLevel].level[currentLevel].span - (rank[0] - rank[currentLevel])
+		updates[currentLevel].level[currentLevel].span = (rank[0] - rank[currentLevel]) + 1
+	}
+
+	for currentLevel := level; currentLevel < z.level; currentLevel++ {
+		updates[currentLevel].level[currentLevel].span++
+	}
+
+	if updates[0] == z.head {
+		newNode.backwards = nil
+	} else {
+		newNode.backwards = updates[0]
+	}
+
+	if newNode.level[0].forward != nil {
+		newNode.level[0].forward.backwards = newNode
+	} else {
+		z.tail = newNode
+	}
+
+	z.length++
+	return newNode
+}
