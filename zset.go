@@ -138,3 +138,26 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 	z.length++
 	return newNode
 }
+
+func (z *zskiplist) getRank(score float64, member string) int64 {
+	var rank uint64 = 0
+	currentNode := z.head
+
+	for level := z.level - 1; level >= 0; level-- {
+		for currentNode.level[level].forward != nil {
+			nextNode := currentNode.level[level].forward
+			if nextNode.score < score || (nextNode.score == score && nextNode.member <= member) {
+				rank += currentNode.level[level].span
+				currentNode = nextNode
+			} else {
+				break
+			}
+		}
+
+		if currentNode.member == member {
+			return int64(rank)
+		}
+	}
+
+	return 0
+}
