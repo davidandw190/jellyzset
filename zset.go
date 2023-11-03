@@ -220,3 +220,26 @@ func (z *zskiplist) delete(score float64, member string) {
 		z.deleteNode(currentNode, updates)
 	}
 }
+
+// getNodeByRank returns the node in the skip list at the specified rank.
+func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
+	if rank == 0 || rank > z.length {
+		return nil
+	}
+
+	var traversed uint64
+	currentNode := z.head
+
+	for level := z.level - 1; level >= 0; level-- {
+		for (currentNode.level[level].forward != nil) && (traversed+currentNode.level[level].span <= rank) {
+			traversed += currentNode.level[level].span
+			currentNode = currentNode.level[level].forward
+		}
+
+		if traversed == rank {
+			return currentNode
+		}
+	}
+
+	return nil
+}
