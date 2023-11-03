@@ -9,15 +9,18 @@ const (
 	SkipProbability = 0.25 // Probability for the skip list, 1/4
 )
 
+// ZSet represents a sorted set data structure with multiple records.
 type ZSet struct {
 	records map[string]*zset
 }
 
+// zset represents a single sorted set in the ZSet.
 type zset struct {
 	records map[string]*zslNode
 	zsl     *zskiplist
 }
 
+// zskiplist represents the skip list structure for sorted sets.
 type zskiplist struct {
 	head   *zslNode
 	tail   *zslNode
@@ -25,6 +28,7 @@ type zskiplist struct {
 	level  int
 }
 
+// zslNode represents a node in the skip list.
 type zslNode struct {
 	member    string
 	value     interface{}
@@ -33,11 +37,13 @@ type zslNode struct {
 	level     []*zslLevel
 }
 
+// zslLevel represents a level in the skip list node.
 type zslLevel struct {
 	forward *zslNode
 	span    uint64
 }
 
+// createNode creates a new skip list node with the given parameters.
 func createNode(level int, score float64, member string, value interface{}) *zslNode {
 	node := &zslNode{
 		score:  score,
@@ -53,6 +59,7 @@ func createNode(level int, score float64, member string, value interface{}) *zsl
 	return node
 }
 
+// newZSkipList initializes and returns a new empty skip list.
 func newZSkipList() *zskiplist {
 	return &zskiplist{
 		level: 1,
@@ -60,6 +67,7 @@ func newZSkipList() *zskiplist {
 	}
 }
 
+// getRandomLevel returns a random level for a skip list node.
 func getRandomLevel() int {
 	level := 1
 	for rand.Float64() < SkipProbability && level < SkipListMaxLvl {
@@ -69,6 +77,8 @@ func getRandomLevel() int {
 	return level
 }
 
+// insert adds a new node with the specified score, member, and value to the skip list.
+// It returns the inserted node.
 func (z *zskiplist) insert(score float64, member string, value interface{}) *zslNode {
 	updates := make([]*zslNode, SkipListMaxLvl)
 	rank := make([]uint64, SkipListMaxLvl)
@@ -139,6 +149,8 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 	return newNode
 }
 
+// getRank returns the rank of a member in the skip list based on its score.
+// If the member is not found, it returns 0.
 func (z *zskiplist) getRank(score float64, member string) int64 {
 	var rank uint64 = 0
 	currentNode := z.head
@@ -162,43 +174,49 @@ func (z *zskiplist) getRank(score float64, member string) int64 {
 	return 0
 }
 
-func (z *zskiplist) deleteNode(nodeToDelete *zslNode) {
+// deleteNode deletes a node from the skip list based on the provided node and updates.
+func (z *zskiplist) deleteNode(nodeToDelete *zslNode, updates []*zslNode) {
+	for level := 0; level < z.level; level++ {
+		if updates[level].level[level].forward == nodeToDelete {
+			updates[level].level[level].span += nodeToDelete.level[level].span - 1
+			updates[level].level[level].forward = nodeToDelete.level[level].forward
+		} else {
+			updates[level].level[level].span--
+		}
+	}
+
+	if nodeToDelete.level[0].forward != nil {
+		nodeToDelete.level[0].forward.backwards = nodeToDelete.backwards
+	} else {
+		z.tail = nodeToDelete.backwards
+	}
+
+	for z.level > 1 && z.head.level[z.level-1].forward == nil {
+		z.level--
+	}
+
+	z.length--
+}
+
+// delete removes a member with the specified score from the skip list.
+func (z *zskiplist) delete(score float64, member string) {
 	updates := make([]*zslNode, SkipListMaxLvl)
-	rank := uint64(0)
+	currentNode := z.head
 
 	for level := z.level - 1; level >= 0; level-- {
-		for currentNode := z.head; currentNode.level[level].forward != nil; {
+		for currentNode.level[level].forward != nil {
 			nextNode := currentNode.level[level].forward
-			rank += currentNode.level[level].span
-			updates[level] = currentNode
-			if nextNode != nil && (nextNode.score < nodeToDelete.score || (nextNode.score == nodeToDelete.score && nextNode.member < nodeToDelete.member)) {
+			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
 				currentNode = nextNode
 			} else {
 				break
 			}
 		}
+		updates[level] = currentNode
 	}
 
-	if nodeToDelete.member == nodeToDelete.member {
-		for level := 0; level < z.level; level++ {
-			if updates[level].level[level].forward == nodeToDelete {
-				updates[level].level[level].span += nodeToDelete.level[level].span - 1
-				updates[level].level[level].forward = nodeToDelete.level[level].forward
-			} else {
-				updates[level].level[level].span--
-			}
-		}
-
-		if nodeToDelete.level[0].forward != nil {
-			nodeToDelete.level[0].forward.backwards = nodeToDelete.backwards
-		} else {
-			z.tail = nodeToDelete.backwards
-		}
-
-		for z.level > 1 && z.head.level[z.level-1].forward == nil {
-			z.level--
-		}
-
-		z.length--
+	currentNode = currentNode.level[0].forward
+	if currentNode != nil && currentNode.score == score && currentNode.member == member {
+		z.deleteNode(currentNode, updates)
 	}
 }
