@@ -243,3 +243,69 @@ func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
 
 	return nil
 }
+
+// findRange retrieves a range of elements from the zset.
+// It starts at the 'start' rank and goes up to the 'stop' rank.
+// If 'reverse' is true, it fetches the elements in reverse order.
+// If 'scoresEnabled' is true, the results will include scores along with members.
+// The function returns a slice of interfaces containing the selected elements.
+func (z *zset) findRange(key string, start, stop int64, reverse, scoresEnabled bool) []interface{} {
+
+	length := int64(z.zsl.length)
+	results := make([]interface{}, 0)
+
+	if start < 0 {
+		start += length
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	if stop < 0 {
+		stop += length
+	}
+
+	if start > stop || start >= length {
+		return results
+	}
+
+	// Calculate the number of elements to fetch
+	span := (stop - start) + 1
+	node := z.getStartNode(start, reverse)
+
+	// Fetch the elements
+	for span > 0 {
+		if scoresEnabled {
+			results = append(results, node.member, node.score)
+		} else {
+			results = append(results, node.member)
+		}
+
+		span--
+		node = z.getNextNode(node, reverse)
+	}
+
+	return results
+
+}
+
+// getStartNode retrieves the starting node for a given rank.
+// If 'reverse' is true, it adjusts the rank for fetching in reverse order.
+func (z *zset) getStartNode(rank int64, reverse bool) *zslNode {
+	if reverse {
+		rank = int64(z.zsl.length) - rank
+	} else {
+		rank++
+	}
+
+	return z.zsl.getNodeByRank(uint64(rank))
+}
+
+// getNextNode retrieves the next node based on the current node in the zset.
+// If 'reverse' is true, it returns the previous node (in reverse order).
+func (z *zset) getNextNode(currentNode *zslNode, reverse bool) *zslNode {
+	if reverse {
+		return currentNode.backwards
+	}
+	return currentNode.level[0].forward
+}
