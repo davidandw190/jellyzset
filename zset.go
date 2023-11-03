@@ -38,7 +38,7 @@ type zslLevel struct {
 	span    uint64
 }
 
-func createNode(level int, score float64, member string, value interface{}) *zskiplistNode {
+func createNode(level int, score float64, member string, value interface{}) *zslNode {
 	node := &zslNode{
 		score:  score,
 		member: member,
@@ -160,4 +160,45 @@ func (z *zskiplist) getRank(score float64, member string) int64 {
 	}
 
 	return 0
+}
+
+func (z *zskiplist) deleteNode(nodeToDelete *zslNode) {
+	updates := make([]*zslNode, SkipListMaxLvl)
+	rank := uint64(0)
+
+	for level := z.level - 1; level >= 0; level-- {
+		for currentNode := z.head; currentNode.level[level].forward != nil; {
+			nextNode := currentNode.level[level].forward
+			rank += currentNode.level[level].span
+			updates[level] = currentNode
+			if nextNode != nil && (nextNode.score < nodeToDelete.score || (nextNode.score == nodeToDelete.score && nextNode.member < nodeToDelete.member)) {
+				currentNode = nextNode
+			} else {
+				break
+			}
+		}
+	}
+
+	if nodeToDelete.member == nodeToDelete.member {
+		for level := 0; level < z.level; level++ {
+			if updates[level].level[level].forward == nodeToDelete {
+				updates[level].level[level].span += nodeToDelete.level[level].span - 1
+				updates[level].level[level].forward = nodeToDelete.level[level].forward
+			} else {
+				updates[level].level[level].span--
+			}
+		}
+
+		if nodeToDelete.level[0].forward != nil {
+			nodeToDelete.level[0].forward.backwards = nodeToDelete.backwards
+		} else {
+			z.tail = nodeToDelete.backwards
+		}
+
+		for z.level > 1 && z.head.level[z.level-1].forward == nil {
+			z.level--
+		}
+
+		z.length--
+	}
 }
