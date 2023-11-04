@@ -338,3 +338,28 @@ func (z *ZSet) ZAdd(key string, score float64, member string, value interface{})
 
 	return 1
 }
+
+// ZScore returns the score of a member in the sorted set at key.
+func (z *ZSet) ZScore(key string, member string) (ok bool, score float64) {
+	set, exists := z.records[key]
+	if !exists {
+		return false, 0.0
+	}
+
+	node, exists := set.records[member]
+	if !exists {
+		return false, 0.0
+	}
+
+	return true, node.score
+}
+
+// ZCard returns the number of members in the sorted set at key.
+func (z *ZSet) ZCard(key string) int {
+	set, exists := z.records[key]
+	if !exists {
+		return 0
+	}
+
+	return len(set.records)
+}
