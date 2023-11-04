@@ -309,3 +309,32 @@ func (z *zset) getNextNode(currentNode *zslNode, reverse bool) *zslNode {
 	}
 	return currentNode.level[0].forward
 }
+
+// ZAdd adds a member with a specified score to the sorted set stored at key.
+func (z *ZSet) ZAdd(key string, score float64, member string, value interface{}) int {
+	set, exists := z.records[key]
+	if !exists {
+		set = &zset{
+			records: make(map[string]*zslNode),
+			zsl:     newZSkipList(),
+		}
+		z.records[key] = set
+	}
+
+	existingNode, memberExists := set.records[member]
+
+	if memberExists && existingNode.score == score {
+		// The member already exists with the same score; update the value.
+		existingNode.value = value
+	} else {
+		// The member is new or has a different score; insert it.
+		if memberExists {
+			set.zsl.delete(existingNode.score, member)
+		}
+
+		newNode := set.zsl.insert(score, member, value)
+		set.records[member] = newNode
+	}
+
+	return 1
+}
