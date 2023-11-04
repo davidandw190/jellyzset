@@ -61,9 +61,11 @@ func createNode(level int, score float64, member string, value interface{}) *zsl
 
 // newZSkipList initializes and returns a new empty skip list.
 func newZSkipList() *zskiplist {
+	head := createNode(SkipListMaxLvl, 0, "", nil)
 	return &zskiplist{
 		level: 1,
-		head:  createNode(SkipListMaxLvl, 0, "", nil),
+		head:  head,
+		tail:  head,
 	}
 }
 
@@ -80,63 +82,67 @@ func getRandomLevel() int {
 // insert adds a new node with the specified score, member, and value to the skip list.
 // It returns the inserted node.
 func (z *zskiplist) insert(score float64, member string, value interface{}) *zslNode {
-	updates := make([]*zslNode, SkipListMaxLvl)
-	rank := make([]uint64, SkipListMaxLvl)
+	// Initialize arrays for update nodes and rank values
+	updateNodes := make([]*zslNode, SkipListMaxLvl)
+	rankValues := make([]uint64, SkipListMaxLvl)
 
 	currentNode := z.head
+
+	// Traverse the levels of the skip list
 	for level := z.level - 1; level >= 0; level-- {
+		// Initialize rank and update node information
 		if level == z.level-1 {
-			rank[level] = 0
+			rankValues[level] = 0
 		} else {
-			rank[level] = rank[level+1]
+			rankValues[level] = rankValues[level+1]
 		}
 
-		for currentNode.level[level].forward != nil {
-			nextNode := currentNode.level[level].forward
+		for currentNode.level[level].forward != nil &&
+			(currentNode.level[level].forward.score < score ||
+				(currentNode.level[level].forward.score == score && currentNode.level[level].forward.member < member)) {
 
-			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
-				rank[level] += currentNode.level[level].span
-			} else {
-				break
-			}
+			rankValues[level] += currentNode.level[level].span
+			currentNode = currentNode.level[level].forward
 		}
 
-		updates[level] = currentNode
+		updateNodes[level] = currentNode
 	}
 
-	level := getRandomLevel()
-	if level > z.level {
-		for newLevel := z.level; newLevel < level; newLevel++ {
-			rank[newLevel] = 0
-			updates[newLevel] = z.head
-			updates[newLevel].level[newLevel].span = uint64(z.length)
+	// Generate a random level for the new node
+	newNodeLevel := getRandomLevel()
+
+	// Add a new level if needed
+	if newNodeLevel > z.level {
+		for i := z.level; i < newNodeLevel; i++ {
+			rankValues[i] = 0
+			updateNodes[i] = z.head
+			updateNodes[i].level[i].span = uint64(z.length)
 		}
-
-		z.level = level
+		z.level = newNodeLevel
 	}
 
-	newNode := &zslNode{
-		score:  score,
-		member: member,
-		value:  value,
-		level:  make([]*zslLevel, level),
+	// Create a new node
+	newNode := createNode(newNodeLevel, score, member, value)
+
+	// Insert the new node according to the update nodes and rank values
+	for level := 0; level < newNodeLevel; level++ {
+		newNode.level[level].forward = updateNodes[level].level[level].forward
+		updateNodes[level].level[level].forward = newNode
+
+		newNode.level[level].span = updateNodes[level].level[level].span - (rankValues[0] - rankValues[level])
+		updateNodes[level].level[level].span = (rankValues[0] - rankValues[level]) + 1
 	}
 
-	for currentLevel := 0; currentLevel < level; currentLevel++ {
-		newNode.level[currentLevel].forward = updates[currentLevel].level[currentLevel].forward
-		updates[currentLevel].level[currentLevel].forward = newNode
-		newNode.level[currentLevel].span = updates[currentLevel].level[currentLevel].span - (rank[0] - rank[currentLevel])
-		updates[currentLevel].level[currentLevel].span = (rank[0] - rank[currentLevel]) + 1
+	// Increment span for untouched levels
+	for level := newNodeLevel; level < z.level; level++ {
+		updateNodes[level].level[level].span++
 	}
 
-	for currentLevel := level; currentLevel < z.level; currentLevel++ {
-		updates[currentLevel].level[currentLevel].span++
-	}
-
-	if updates[0] == z.head {
+	// Update the backward and forward pointers
+	if updateNodes[0] == z.head {
 		newNode.backwards = nil
 	} else {
-		newNode.backwards = updates[0]
+		newNode.backwards = updateNodes[0]
 	}
 
 	if newNode.level[0].forward != nil {
@@ -299,6 +305,12 @@ func (z *zset) getStartNode(rank int64, reverse bool) *zslNode {
 	}
 
 	return z.zsl.getNodeByRank(uint64(rank))
+}
+
+func New() *ZSet {
+	return &ZSet{
+		make(map[string]*zset),
+	}
 }
 
 // getNextNode retrieves the next node based on the current node in the zset.
