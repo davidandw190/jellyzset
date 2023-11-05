@@ -322,7 +322,28 @@ func (z *zset) getNextNode(currentNode *zslNode, reverse bool) *zslNode {
 	return currentNode.level[0].forward
 }
 
-// ZAdd adds a member with a specified score to the sorted set stored at key.
+// ZAdd adds a member with a specified score to the sorted set stored at the given key.
+//
+// If the key does not exist, a new sorted set is created and the member is added with the provided score.
+// If the member already exists in the sorted set, its score is updated with the new value.
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - score:   The score to assign to the member.
+//   - member:  The member to add or update in the sorted set.
+//   - value:   The associated value for the member.
+//
+// Returns:
+//   - 1 if the member is added or updated successfully, 0 otherwise.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.2, "member1", "updatedValue1")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members, "member1" and "member2," with their respective scores and values. The third ZAdd call updates "member1" with a new value and score.
 func (z *ZSet) ZAdd(key string, score float64, member string, value interface{}) int {
 	set, exists := z.records[key]
 	if !exists {
@@ -351,7 +372,25 @@ func (z *ZSet) ZAdd(key string, score float64, member string, value interface{})
 	return 1
 }
 
-// ZScore returns the score of a member in the sorted set at key.
+// ZScore returns the score of a member in the sorted set stored at the given key.
+//
+// If the key or member does not exist in the sorted set, it returns (false, 0.0).
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - member:  The member for which the score is requested.
+//
+// Returns:
+//   - A boolean indicating whether the member exists in the sorted set.
+//   - The score of the member if it exists; otherwise, 0.0.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	exists, score := zset.ZScore("mySortedSet", "member1")
+//
+// In this example, we create a sorted set "mySortedSet" and add "member1" with a score of 3.5. We then retrieve the score for "member1," and exists will be true, while the score will be 3.5.
 func (z *ZSet) ZScore(key string, member string) (ok bool, score float64) {
 	set, exists := z.records[key]
 	if !exists {
@@ -366,7 +405,24 @@ func (z *ZSet) ZScore(key string, member string) (ok bool, score float64) {
 	return true, node.score
 }
 
-// ZCard returns the number of members in the sorted set at key.
+// ZCard returns the number of members in the sorted set stored at the given key.
+//
+// If the key does not exist, it returns 0, indicating an empty sorted set.
+//
+// Parameters:
+//   - key: The key associated with the sorted set.
+//
+// Returns:
+//   - The number of members in the sorted set or 0 if the key does not exist.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	count := zset.ZCard("mySortedSet")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZCard is then used to determine the count, which will be 2.
 func (z *ZSet) ZCard(key string) int {
 	set, exists := z.records[key]
 	if !exists {
@@ -376,7 +432,26 @@ func (z *ZSet) ZCard(key string) int {
 	return len(set.records)
 }
 
-// ZRank returns the rank of a member in the sorted set at key.
+// ZRank returns the rank of a member in the sorted set stored at the given key.
+//
+// If the key or member does not exist in the sorted set, it returns -1.
+// Ranks are 0-based, with 0 being the rank of the member with the lowest score.
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - member:  The member for which the rank is requested.
+//
+// Returns:
+//   - The rank of the member in the sorted set, or -1 if the key or member does not exist.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	rank := zset.ZRank("mySortedSet", "member2")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZRank is used to find the rank of "member2," which will be 0, as it has the lowest score.
 func (z *ZSet) ZRank(key, member string) int64 {
 	set, exists := z.records[key]
 	if !exists {
@@ -391,7 +466,26 @@ func (z *ZSet) ZRank(key, member string) int64 {
 	return int64(set.zsl.getRank(node.score, member))
 }
 
-// ZRevRank returns the reverse rank of a member in the sorted set at key.
+// ZRevRank returns the reverse rank of a member in the sorted set stored at the given key.
+//
+// If the key or member does not exist in the sorted set, it returns -1.
+// Reverse ranks are 0-based, with 0 being the rank of the member with the highest score.
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - member:  The member for which the reverse rank is requested.
+//
+// Returns:
+//   - The reverse rank of the member in the sorted set, or -1 if the key or member does not exist.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	revRank := zset.ZRevRank("mySortedSet", "member1")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZRevRank is used to find the reverse rank of "member1," which will be 0, as it has the highest score.
 func (z *ZSet) ZRevRank(key, member string) int64 {
 	set, exists := z.records[key]
 	if !exists {
@@ -404,4 +498,38 @@ func (z *ZSet) ZRevRank(key, member string) int64 {
 	}
 
 	return int64(set.zsl.length) - int64(set.zsl.getRank(node.score, member))
+}
+
+// ZRem removes a member from the sorted set stored at the given key.
+//
+// If the key or member does not exist in the sorted set, it returns false.
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - member:  The member to remove from the sorted set.
+//
+// Returns:
+//   - true if the member is successfully removed, false if the key or member does not exist in the sorted set.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	removed := zset.ZRem("mySortedSet", "member1")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZRem is used to remove "member1," and it returns true, indicating successful removal.
+func (z *ZSet) ZRem(key, member string) bool {
+	set, exists := z.records[key]
+	if !exists {
+		return false
+	}
+
+	if node, exists := set.records[member]; exists {
+		set.zsl.delete(node.score, member)
+		delete(set.records, member)
+		return true
+	}
+
+	return true
 }
