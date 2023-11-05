@@ -2,7 +2,8 @@ package jellyzset
 
 import "testing"
 
-func slicesEqualIgnoreOrder(slice1, slice2 []interface{}) bool {
+func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
+	t.Helper()
 	if len(slice1) != len(slice2) {
 		return false
 	}
@@ -103,5 +104,57 @@ func TestZSet_ZAdd(t *testing.T) {
 		ok, _ = zset.ZScore(key, member)
 		assertBoolEqual(t, true, ok, "Updated Member Value Existence Check")
 
+	})
+}
+
+func TestZSet_ZScore(t *testing.T) {
+	zset := New()
+
+	t.Run("Get Score of a Non-Existent Member", func(t *testing.T) {
+		// Test getting the score of a member that does not exist in the sorted set.
+		key := "sorted_set"
+		member := "nonexistent_member"
+
+		ok, score := zset.ZScore(key, member)
+
+		assertBoolEqual(t, false, ok, "Non-Existent Member Existence Check")
+		assertFloatEqual(t, 0.0, score, "Non-Existent Member Score Check")
+	})
+
+	t.Run("Get Score of an Existing Member", func(t *testing.T) {
+		// Test getting the score of an existing member in the sorted set.
+		key := "sorted_set"
+		score := 5.0
+		member := "existing_member"
+		value := "value1"
+
+		zset.ZAdd(key, score, member, value)
+
+		ok, retrievedScore := zset.ZScore(key, member)
+
+		assertBoolEqual(t, true, ok, "Existing Member Existence Check")
+		assertFloatEqual(t, score, retrievedScore, "Existing Member Score Check")
+	})
+}
+
+func TestZSet_ZCard(t *testing.T) {
+	zset := New()
+
+	t.Run("Get Cardinality of an Empty ZSet", func(t *testing.T) {
+		// Test getting the cardinality of an empty sorted set.
+		key := "empty_sorted_set"
+		cardinality := zset.ZCard(key)
+
+		assertCountEqual(t, 0, cardinality, "Cardinality of Empty Sorted Set")
+	})
+
+	t.Run("Get Cardinality of a Non-Empty Sorted Set", func(t *testing.T) {
+		// Test getting the cardinality of a non-empty sorted set.
+		key := "non_empty_sorted_set"
+		zset.ZAdd(key, 1.0, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		cardinality := zset.ZCard(key)
+
+		assertCountEqual(t, 2, cardinality, "Cardinality of Non-Empty Sorted Set")
 	})
 }
