@@ -375,3 +375,33 @@ func (z *ZSet) ZCard(key string) int {
 
 	return len(set.records)
 }
+
+// ZRank returns the rank of a member in the sorted set at key.
+func (z *ZSet) ZRank(key, member string) int64 {
+	set, exists := z.records[key]
+	if !exists {
+		return -1
+	}
+
+	node, exists := set.records[member]
+	if !exists {
+		return -1
+	}
+
+	return int64(set.zsl.getRank(node.score, member))
+}
+
+// ZRevRank returns the reverse rank of a member in the sorted set at key.
+func (z *ZSet) ZRevRank(key, member string) int64 {
+	set, exists := z.records[key]
+	if !exists {
+		return -1
+	}
+
+	node, exists := set.records[member]
+	if !exists {
+		return -1
+	}
+
+	return int64(set.zsl.length) - int64(set.zsl.getRank(node.score, member))
+}
