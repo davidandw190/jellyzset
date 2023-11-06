@@ -158,22 +158,24 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 // getRank returns the rank of a member in the skip list based on its score.
 // If the member is not found, it returns 0.
 func (z *zskiplist) getRank(score float64, member string) int64 {
-	var rank uint64 = 0
+	var rank int64 = -1 // Initialize to -1, which will indicate not found
+
 	currentNode := z.head
 
 	for level := z.level - 1; level >= 0; level-- {
 		for currentNode.level[level].forward != nil {
 			nextNode := currentNode.level[level].forward
-			if nextNode.score < score || (nextNode.score == score && nextNode.member <= member) {
-				rank += currentNode.level[level].span
+
+			if nextNode.score == score && nextNode.member == member {
+				return rank + 1 // Found, return the rank (starting from 0)
+			}
+
+			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
+				rank++
 				currentNode = nextNode
 			} else {
 				break
 			}
-		}
-
-		if currentNode.member == member {
-			return int64(rank)
 		}
 	}
 

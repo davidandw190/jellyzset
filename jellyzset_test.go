@@ -1,6 +1,8 @@
 package jellyzset
 
-import "testing"
+import (
+	"testing"
+)
 
 func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
 	t.Helper()
@@ -27,6 +29,13 @@ func assertCountEqual(t *testing.T, expected, actual int, message string) {
 	t.Helper()
 	if actual != expected {
 		t.Errorf("%s: Expected count %d, got %d", message, expected, actual)
+	}
+}
+
+func assertIntEqual(t *testing.T, expected, actual int64, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %d, got %d", message, expected, actual)
 	}
 }
 
@@ -156,5 +165,64 @@ func TestZSet_ZCard(t *testing.T) {
 		cardinality := zset.ZCard(key)
 
 		assertCountEqual(t, 2, cardinality, "Cardinality of Non-Empty Sorted Set")
+	})
+}
+
+func TestZSet_ZRank(t *testing.T) {
+	zset := New()
+
+	t.Run("Rank of Non-Existent Key", func(t *testing.T) {
+		// Test getting the rank of a member for a non-existent key.
+		rank := zset.ZRank("nonexistent_key", "member")
+		assertIntEqual(t, -1, rank, "Rank of Non-Existent Key")
+	})
+
+	t.Run("Rank of Non-Existent Member", func(t *testing.T) {
+		// Test getting the rank of a non-existent member in an existing key.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+
+		rank := zset.ZRank(key, "nonexistent_member")
+		assertIntEqual(t, -1, rank, "Rank of Non-Existent Member")
+	})
+
+	t.Run("Rank of Single Member", func(t *testing.T) {
+		// Test getting the rank of a single member in a sorted set.
+		key := "sorted_set"
+		member := "member1"
+
+		zset.ZAdd(key, 3.0, member, "value1")
+		rank := zset.ZRank(key, member)
+		assertIntEqual(t, 0, rank, "Rank of Single Member")
+	})
+
+	t.Run("Rank of Members with Same Score", func(t *testing.T) {
+		// Test getting the rank of members with the same score in a sorted set.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 3.0, "member2", "value2")
+
+		rank1 := zset.ZRank(key, "member1")
+		rank2 := zset.ZRank(key, "member2")
+
+		assertIntEqual(t, 0, rank1, "Rank of Member1 with Same Score")
+		assertIntEqual(t, 1, rank2, "Rank of Member2 with Same Score")
+	})
+
+	t.Run("Rank of Multiple Members", func(t *testing.T) {
+		// Test getting the rank of multiple members with different scores.
+		key := "sorted_set"
+		zset.ZAdd(key, 5.0, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 7.0, "member3", "value3")
+
+		rank1 := zset.ZRank(key, "member1")
+		rank2 := zset.ZRank(key, "member2")
+		rank3 := zset.ZRank(key, "member3")
+
+		assertIntEqual(t, 1, rank1, "Rank of Member1")
+		assertIntEqual(t, 0, rank2, "Rank of Member2")
+		assertIntEqual(t, 2, rank3, "Rank of Member3")
+
 	})
 }
