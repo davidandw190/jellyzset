@@ -289,6 +289,39 @@ func (z *ZSet) ZRem(key, member string) bool {
 	return true
 }
 
+// ZRevScoreRange returns all the elements in the sorted set at the given key with scores falling within the range [max, min].
+//
+// This function returns elements ordered from high to low scores within the specified range, including elements with scores equal to max or min.
+//
+// If the key does not exist or if the provided max score is less than the min score, the function returns an empty slice.
+//
+// Parameters:
+//   - key: The key associated with the sorted set.
+//   - max: The maximum score for the range.
+//   - min: The minimum score for the range.
+//
+// Returns:
+//   - A slice of interfaces containing elements with scores within the specified range, ordered from high to low scores.
+//
+// Example:
+//
+//	zset := New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
+//	result := zset.ZRevScoreRange("mySortedSet", 4.0, 2.0)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members with different scores. ZRevScoreRange is used to retrieve elements within the score range [4.0, 2.0]. The result will be a slice containing the elements "member3" with a score of 4.0 and "member2" with a score of 2.0, ordered from high to low scores.
+func (z *ZSet) ZScoreRange(key string, min, max float64) []interface{} {
+	if _, exists := z.records[key]; !exists || min > max {
+		return nil
+	}
+
+	item := z.records[key].zsl
+	minScore, maxScore := z.limitScores(item, min, max)
+	return z.collectElementsInRange(item, minScore, maxScore)
+}
+
 // getRandomLevel returns a random level for a skip list node.
 func getRandomLevel() int {
 	level := 1
@@ -534,4 +567,41 @@ func (z *zset) getNextNode(currentNode *zslNode, reverse bool) *zslNode {
 		return currentNode.backwards
 	}
 	return currentNode.level[0].forward
+}
+
+// limitScores ensures that min and max scores fall within the valid score range.
+//
+// If min is below the lowest score, it is set to the lowest score.
+// If max is above the highest score, it is set to the highest score.
+func (z *ZSet) limitScores(item *zskiplist, min, max float64) (float64, float64) {
+	minScore := item.head.level[0].forward.score
+	if min < minScore {
+		min = minScore
+	}
+
+	maxScore := item.tail.score
+	if max > maxScore {
+		max = maxScore
+	}
+
+	return min, max
+}
+
+// collectElementsInRange collects all elements with scores between min and max in the sorted set.
+func (z *ZSet) collectElementsInRange(item *zskiplist, min, max float64) []interface{} {
+	var result []interface{}
+	currentNode := item.head
+	for level := item.level - 1; level >= 0; level-- {
+		for currentNode.level[level].forward != nil && currentNode.level[level].forward.score < min {
+			currentNode = currentNode.level[level].forward
+		}
+	}
+
+	currentNode = currentNode.level[0].forward
+	for currentNode != nil && currentNode.score <= max {
+		result = append(result, currentNode.member, currentNode.score)
+		currentNode = currentNode.level[0].forward
+	}
+
+	return result
 }

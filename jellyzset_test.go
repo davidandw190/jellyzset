@@ -217,14 +217,15 @@ func TestZSet_ZRevRank(t *testing.T) {
 		zset.ZAdd(key, 5.0, "member1", "value1")
 		zset.ZAdd(key, 2.0, "member2", "value2")
 		zset.ZAdd(key, 7.0, "member3", "value3")
+
 		revRank1 := zset.ZRevRank(key, "member1")
 		revRank2 := zset.ZRevRank(key, "member2")
 		revRank3 := zset.ZRevRank(key, "member3")
+
 		assertIntEqual(t, 1, revRank1, "Reverse Rank of Member1")
 		assertIntEqual(t, 2, revRank2, "Reverse Rank of Member2")
 		assertIntEqual(t, 0, revRank3, "Reverse Rank of Member3")
 	})
-
 }
 
 func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
