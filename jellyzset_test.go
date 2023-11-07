@@ -4,62 +4,6 @@ import (
 	"testing"
 )
 
-func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
-	t.Helper()
-	if len(slice1) != len(slice2) {
-		return false
-	}
-
-	matched := make(map[interface{}]bool)
-
-	for _, item := range slice1 {
-		matched[item] = true
-	}
-
-	for _, item := range slice2 {
-		if !matched[item] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func assertCountEqual(t *testing.T, expected, actual int, message string) {
-	t.Helper()
-	if actual != expected {
-		t.Errorf("%s: Expected count %d, got %d", message, expected, actual)
-	}
-}
-
-func assertIntEqual(t *testing.T, expected, actual int64, message string) {
-	t.Helper()
-	if actual != expected {
-		t.Errorf("%s: Expected %d, got %d", message, expected, actual)
-	}
-}
-
-func assertBoolEqual(t *testing.T, expected, actual bool, message string) {
-	t.Helper()
-	if actual != expected {
-		t.Errorf("%s: Expected %v, got %v", message, expected, actual)
-	}
-}
-
-func assertFloatEqual(t *testing.T, expected, actual float64, message string) {
-	t.Helper()
-	if actual != expected {
-		t.Errorf("%s: Expected %f, got %f", message, expected, actual)
-	}
-}
-
-func assertStringEqual(t *testing.T, expected, actual string, message string) {
-	t.Helper()
-	if actual != expected {
-		t.Errorf("%s: Expected %s, got %s", message, expected, actual)
-	}
-}
-
 func TestZSet_ZAdd(t *testing.T) {
 	zset := New()
 
@@ -281,4 +225,60 @@ func TestZSet_ZRevRank(t *testing.T) {
 		assertIntEqual(t, 0, revRank3, "Reverse Rank of Member3")
 	})
 
+}
+
+func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
+	t.Helper()
+	if len(slice1) != len(slice2) {
+		return false
+	}
+
+	matched := make(map[interface{}]bool)
+
+	for _, item := range slice1 {
+		matched[item] = true
+	}
+
+	for _, item := range slice2 {
+		if !matched[item] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func assertCountEqual(t *testing.T, expected, actual int, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected count %d, got %d", message, expected, actual)
+	}
+}
+
+func assertIntEqual(t *testing.T, expected, actual int64, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %d, got %d", message, expected, actual)
+	}
+}
+
+func assertBoolEqual(t *testing.T, expected, actual bool, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %v, got %v", message, expected, actual)
+	}
+}
+
+func assertFloatEqual(t *testing.T, expected, actual float64, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %f, got %f", message, expected, actual)
+	}
+}
+
+func assertStringEqual(t *testing.T, expected, actual string, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %s, got %s", message, expected, actual)
+	}
 }
