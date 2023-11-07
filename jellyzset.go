@@ -157,30 +157,117 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 
 // getRank returns the rank of a member in the skip list based on its score.
 // If the member is not found, it returns 0.
-func (z *zskiplist) getRank(score float64, member string) int64 {
-	var rank int64 = -1 // Initialize to -1, which will indicate not found
-
-	currentNode := z.head
-
-	for level := z.level - 1; level >= 0; level-- {
-		for currentNode.level[level].forward != nil {
-			nextNode := currentNode.level[level].forward
-
-			if nextNode.score == score && nextNode.member == member {
-				return rank + 1 // Found, return the rank (starting from 0)
-			}
+func (z *zskiplist) getRank(score float64, member string) uint64 {
+	var rank uint64 = 0
+	x := z.head
+	for i := z.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil {
+			nextNode := x.level[i].forward
 
 			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
-				rank++
-				currentNode = nextNode
+				rank += x.level[i].span
+				x = nextNode
 			} else {
 				break
 			}
 		}
+
+		if x.member == member {
+			return rank
+		}
 	}
 
-	return 0
+	return rank
 }
+
+// func (z *zskiplist) getRank(score float64, member string) int64 {
+// 	var rank int64
+// 	currentNode := z.head
+// 	for level := z.level - 1; level >= 0; level-- {
+// 		for currentNode.level[level].forward != nil &&
+// 			(currentNode.level[level].forward.score < score ||
+// 				(currentNode.level[level].forward.score == score &&
+// 					currentNode.level[level].forward.member <= member)) {
+// 			rank += int64(currentNode.level[level].span)
+// 			currentNode = currentNode.level[level].forward
+// 		}
+
+// 		if currentNode.member == member {
+// 			return rank
+// 		}
+// 	}
+
+// 	return -1
+// }
+
+// func (z *zskiplist) getRank(score float64, member string) int64 {
+// 	var rank uint64 = 0
+// 	x := z.head
+// 	for i := z.level - 1; i >= 0; i-- {
+// 		for x.level[i].forward != nil &&
+// 			(x.level[i].forward.score < score ||
+// 				(x.level[i].forward.score == score &&
+// 					x.level[i].forward.member <= member)) {
+// 			rank += x.level[i].span
+// 			x = x.level[i].forward
+// 		}
+
+// 		if x.member == member {
+// 			return int64(rank)
+// 		}
+// 	}
+
+// 	return 0
+// }
+
+// func (z *zskiplist) getRank(score float64, member string) int64 {
+// 	var rank int64
+// 	currentNode := z.head
+
+// 	for level := z.level - 1; level >= 0; level-- {
+// 		for currentNode.level[level].forward != nil {
+// 			nextNode := currentNode.level[level].forward
+
+// 			if nextNode.score == score && nextNode.member == member {
+// 				return rank
+// 			}
+
+// 			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
+// 				rank++
+// 				currentNode = nextNode
+// 			} else {
+// 				break
+// 			}
+// 		}
+// 	}
+
+// 	return 0
+// }
+
+// func (z *zskiplist) getRank(score float64, member string) int64 {
+// 	var rank int64 = -1 // Initialize to -1, which will indicate not found
+
+// 	currentNode := z.head
+
+// 	for level := z.level - 1; level >= 0; level-- {
+// 		for currentNode.level[level].forward != nil {
+// 			nextNode := currentNode.level[level].forward
+
+// 			if nextNode.score == score && nextNode.member == member {
+// 				return rank + 1 // Found, return the rank (starting from 0)
+// 			}
+
+// 			if nextNode.score < score || (nextNode.score == score && nextNode.member < member) {
+// 				rank++
+// 				currentNode = nextNode
+// 			} else {
+// 				break
+// 			}
+// 		}
+// 	}
+
+// 	return 0
+// }
 
 // deleteNode deletes a node from the skip list based on the provided node and updates.
 func (z *zskiplist) deleteNode(nodeToDelete *zslNode, updates []*zslNode) {
@@ -460,12 +547,13 @@ func (z *ZSet) ZRank(key, member string) int64 {
 		return -1
 	}
 
-	node, exists := set.records[member]
-	if !exists {
+	node, exist := set.records[member]
+	if !exist {
 		return -1
 	}
 
-	return int64(set.zsl.getRank(node.score, member))
+	rank := int64(set.zsl.getRank(node.score, member)) // Cast the rank to int64
+	return rank
 }
 
 // ZRevRank returns the reverse rank of a member in the sorted set stored at the given key.
@@ -499,7 +587,8 @@ func (z *ZSet) ZRevRank(key, member string) int64 {
 		return -1
 	}
 
-	return int64(set.zsl.length) - int64(set.zsl.getRank(node.score, member))
+	// Calculate reverse rank by subtracting the rank from the length
+	return int64(set.zsl.length - set.zsl.getRank(node.score, member))
 }
 
 // ZRem removes a member from the sorted set stored at the given key.
