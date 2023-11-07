@@ -226,3 +226,59 @@ func TestZSet_ZRank(t *testing.T) {
 
 	})
 }
+
+func TestZSet_ZRevRank(t *testing.T) {
+	zset := New()
+
+	t.Run("Reverse Rank of Non-Existent Key", func(t *testing.T) {
+		// Test getting the reverse rank of a member for a non-existent key.
+		revRank := zset.ZRevRank("nonexistent_key", "member")
+		assertIntEqual(t, -1, revRank, "Reverse Rank of Non-Existent Key")
+	})
+
+	t.Run("Reverse Rank of Non-Existent Member", func(t *testing.T) {
+		// Test getting the reverse rank of a non-existent member in an existing key.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		revRank := zset.ZRevRank(key, "nonexistent_member")
+		assertIntEqual(t, -1, revRank, "Reverse Rank of Non-Existent Member")
+	})
+
+	t.Run("Reverse Rank of Single Member", func(t *testing.T) {
+		// Test getting the reverse rank of a single member in a sorted set.
+		key := "sorted_set"
+		member := "member1"
+		zset.ZAdd(key, 3.0, member, "value1")
+		revRank := zset.ZRevRank(key, member)
+		assertIntEqual(t, 0, revRank, "Reverse Rank of Single Member")
+	})
+
+	t.Run("Reverse Rank of Members with Same Score", func(t *testing.T) {
+		// Test getting the reverse rank of members with the same score in a sorted set.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 3.0, "member2", "value2")
+
+		revRank1 := zset.ZRevRank(key, "member1")
+		revRank2 := zset.ZRevRank(key, "member2")
+
+		assertIntEqual(t, 1, revRank1, "Reverse Rank of Member1 with Same Score")
+		assertIntEqual(t, 0, revRank2, "Reverse Rank of Member2 with Same Score")
+
+	})
+
+	t.Run("Reverse Rank of Multiple Members", func(t *testing.T) {
+		// Test getting the reverse rank of multiple members with different scores.
+		key := "sorted_set"
+		zset.ZAdd(key, 5.0, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 7.0, "member3", "value3")
+		revRank1 := zset.ZRevRank(key, "member1")
+		revRank2 := zset.ZRevRank(key, "member2")
+		revRank3 := zset.ZRevRank(key, "member3")
+		assertIntEqual(t, 1, revRank1, "Reverse Rank of Member1")
+		assertIntEqual(t, 2, revRank2, "Reverse Rank of Member2")
+		assertIntEqual(t, 0, revRank3, "Reverse Rank of Member3")
+	})
+
+}

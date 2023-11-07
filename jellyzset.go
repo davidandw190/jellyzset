@@ -588,7 +588,7 @@ func (z *ZSet) ZRevRank(key, member string) int64 {
 	}
 
 	// Calculate reverse rank by subtracting the rank from the length
-	return int64(set.zsl.length - set.zsl.getRank(node.score, member))
+	return int64(set.zsl.length - set.zsl.getRank(node.score, member) - 1)
 }
 
 // ZRem removes a member from the sorted set stored at the given key.
