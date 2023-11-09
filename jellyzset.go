@@ -357,6 +357,46 @@ func (z *ZSet) ZRevScoreRange(key string, max, min float64) []interface{} {
 	return z.collectElementsInReverseRange(item, maxScore, minScore)
 }
 
+// ZKeyExists checks if a sorted set exists with the given key.
+//
+// Parameters:
+//   - key: The key to check for the existence of a sorted set.
+//
+// Returns:
+//   - true if a sorted set exists with the provided key, false otherwise.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	exists := zset.ZKeyExists("mySortedSet")
+//
+// In this example, we create a sorted set "mySortedSet" and use ZKeyExists to check if it exists. The result will be true.
+func (z *ZSet) ZKeyExists(key string) bool {
+	_, exists := z.records[key]
+	return exists
+}
+
+// ZClear removes a sorted set with the given key from the ZSet.
+//
+// If the sorted set with the provided key does not exist, the function has no effect.
+//
+// Parameters:
+//   - key: The key associated with the sorted set to be removed.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZClear("mySortedSet")
+//
+// In this example, we create a sorted set "mySortedSet" and then use ZClear to remove it. After this operation, ZKeyExists("mySortedSet") will return false.
+func (z *ZSet) ZClear(key string) {
+	if z.ZKeyExists(key) {
+		delete(z.records, key)
+	}
+}
+
 // getRandomLevel returns a random level for a skip list node.
 func getRandomLevel() int {
 	level := 1
