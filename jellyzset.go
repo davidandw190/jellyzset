@@ -427,7 +427,7 @@ func (z *ZSet) ZRange(key string, start, stop int) []interface{} {
 	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, false)
 }
 
-// ZRangeWithScores returns a range of elements with scores from the sorted set at the given key.
+// ZRangeWithScore returns a range of elements with scores from the sorted set at the given key.
 //
 // It starts at the 'start' index and goes up to the 'stop' index (inclusive).
 // If 'start' is greater than 'stop' or the key does not exist, an empty slice is returned.
@@ -447,15 +447,76 @@ func (z *ZSet) ZRange(key string, start, stop int) []interface{} {
 //	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
 //	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
 //	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
-//	result := zset.ZRangeWithScores("mySortedSet", 0, 1)
+//	result := zset.ZRangeWithScore("mySortedSet", 0, 1)
 //
 // In this example, we create a sorted set "mySortedSet" and add three members. ZRangeWithScores is used to retrieve elements with scores within the range [0, 1]. The result will be a slice containing the elements "member2," its score 2.0, "member1," and its score 3.5.
-func (z *ZSet) ZRangeWithScores(key string, start, stop int) []interface{} {
+func (z *ZSet) ZRangeWithScore(key string, start, stop int) []interface{} {
 	if !z.ZKeyExists(key) || start > stop {
 		return []interface{}{}
 	}
 
 	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, true)
+}
+
+// ZRevRange returns a range of elements in reverse order from the sorted set at the given key.
+//
+// It starts at the 'start' index and goes down to the 'stop' index (inclusive).
+// If 'start' is greater than 'stop' or the key does not exist, an empty slice is returned.
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - start: The starting index of the range.
+//   - stop:  The ending index of the range.
+//
+// Returns:
+//   - A slice of interfaces containing the selected elements within the specified range, in reverse order.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
+//	result := zset.ZRevRange("mySortedSet", 1, 0)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members. ZRevRange is used to retrieve elements in reverse order within the range [1, 0]. The result will be a slice containing the elements "member1" and "member2" in reverse order.
+func (z *ZSet) ZRevRange(key string, start, stop int) []interface{} {
+	if !z.ZKeyExists(key) || start > stop {
+		return []interface{}{}
+	}
+
+	return z.records[key].findRangeByIndex(int64(start), int64(stop), true, false)
+}
+
+// ZRevRangeWithScore returns a range of elements with scores in reverse order from the sorted set at the given key.
+//
+// It starts at the 'start' index and goes down to the 'stop' index (inclusive).
+// If 'start' is greater than 'stop' or the key does not exist, nil is returned.
+// The results include scores along with members in the format [member1, score1, member2, score2, ...], in reverse order.
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - start: The starting index of the range.
+//   - stop:  The ending index of the range.
+//
+// Returns:
+//   - A slice of interfaces containing the selected elements with scores within the specified range, in reverse order.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
+//	result := zset.ZRevRangeWithScore("mySortedSet", 1, 0)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members. ZRevRangeWithScores is used to retrieve elements with scores in reverse order within the range [1, 0]. The result will be a slice containing the elements "member2" with its score 2.0 and "member1" with its score 3.5, in reverse order.
+func (z *ZSet) ZRevRangeWithScore(key string, start, stop int) []interface{} {
+	if !z.ZKeyExists(key) || start > stop {
+		return nil
+	}
+
+	return z.records[key].findRangeByIndex(int64(start), int64(stop), true, true)
 }
 
 // getRandomLevel returns a random level for a skip list node.
