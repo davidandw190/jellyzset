@@ -397,6 +397,67 @@ func (z *ZSet) ZClear(key string) {
 	}
 }
 
+// ZRange returns a range of elements from the sorted set at the given key.
+//
+// It starts at the 'start' index and goes up to the 'stop' index (inclusive).
+// If 'start' is greater than 'stop' or the key does not exist, an empty slice is returned.
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - start: The starting index of the range.
+//   - stop:  The ending index of the range.
+//
+// Returns:
+//   - A slice of interfaces containing the selected elements within the specified range.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
+//	result := zset.ZRange("mySortedSet", 0, 1)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members. ZRange is used to retrieve elements within the range [0, 1]. The result will be a slice containing the elements "member2" and "member1".
+func (z *ZSet) ZRange(key string, start, stop int) []interface{} {
+	if !z.ZKeyExists(key) || start > stop {
+		return []interface{}{}
+	}
+
+	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, false)
+}
+
+// ZRangeWithScores returns a range of elements with scores from the sorted set at the given key.
+//
+// It starts at the 'start' index and goes up to the 'stop' index (inclusive).
+// If 'start' is greater than 'stop' or the key does not exist, an empty slice is returned.
+// The results include scores along with members in the format [member1, score1, member2, score2, ...].
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - start: The starting index of the range.
+//   - stop:  The ending index of the range.
+//
+// Returns:
+//   - A slice of interfaces containing the selected elements with scores within the specified range.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
+//	result := zset.ZRangeWithScores("mySortedSet", 0, 1)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members. ZRangeWithScores is used to retrieve elements with scores within the range [0, 1]. The result will be a slice containing the elements "member2," its score 2.0, "member1," and its score 3.5.
+func (z *ZSet) ZRangeWithScores(key string, start, stop int) []interface{} {
+	if !z.ZKeyExists(key) || start > stop {
+		return []interface{}{}
+	}
+
+	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, true)
+}
+
 // getRandomLevel returns a random level for a skip list node.
 func getRandomLevel() int {
 	level := 1
@@ -583,7 +644,7 @@ func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
 // If 'reverseEnabled' is true, it fetches the elements in reverse order.
 // If 'scoresEnabled' is true, the results will include scores along with members.
 // The function returns a slice of interfaces containing the selected elements.
-func (z *zset) findRangeByIndex(key string, start, stop int64, reverseEnabled, scoresEnabled bool) []interface{} {
+func (z *zset) findRangeByIndex(start, stop int64, reverseEnabled, scoresEnabled bool) []interface{} {
 	length := z.zsl.length
 
 	start, stop = adjustRangeIndecies(start, stop, int64(length))
