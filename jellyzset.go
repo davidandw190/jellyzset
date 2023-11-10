@@ -397,6 +397,29 @@ func (z *ZSet) ZClear(key string) {
 	}
 }
 
+// ZKeys returns a slice of all the keys in the ZSet, representing individual sorted sets.
+//
+// This function provides a list of all the unique keys present in the ZSet.
+//
+// Returns:
+//   - A slice of strings containing all the keys in the ZSet.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("set1", 3.5, "member1", "value1")
+//	zset.ZAdd("set2", 2.0, "member2", "value2")
+//	keys := zset.ZKeys()
+//
+// In this example, we create a ZSet and add two sorted sets with keys "set1" and "set2." The Keys function is used to retrieve a slice containing the keys ["set1", "set2"].
+func (z *ZSet) ZKeys() []string {
+	keys := make([]string, 0, len(z.records))
+	for key := range z.records {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 // ZRange returns a range of elements from the sorted set at the given key.
 //
 // It starts at the 'start' index and goes up to the 'stop' index (inclusive).
