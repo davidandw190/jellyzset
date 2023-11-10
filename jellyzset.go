@@ -51,18 +51,18 @@ func New() *ZSet {
 
 // createNode creates a new skip list node with the given parameters.
 func createNode(level int, score float64, member string, value interface{}) *zslNode {
-	node := &zslNode{
+	newNode := &zslNode{
 		score:  score,
 		member: member,
 		value:  value,
 		level:  make([]*zslLevel, level),
 	}
 
-	for i := range node.level {
-		node.level[i] = new(zslLevel)
+	for i := range newNode.level {
+		newNode.level[i] = new(zslLevel)
 	}
 
-	return node
+	return newNode
 }
 
 // newZSkipList initializes and returns a new empty skip list.
@@ -580,14 +580,54 @@ func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
 
 // findRange retrieves a range of elements from the zset.
 // It starts at the 'start' rank and goes up to the 'stop' rank.
-// If 'reverse' is true, it fetches the elements in reverse order.
+// If 'reverseEnabled' is true, it fetches the elements in reverse order.
 // If 'scoresEnabled' is true, the results will include scores along with members.
 // The function returns a slice of interfaces containing the selected elements.
-func (z *zset) findRange(key string, start, stop int64, reverse, scoresEnabled bool) []interface{} {
+func (z *zset) findRangeByIndex(key string, start, stop int64, reverseEnabled, scoresEnabled bool) []interface{} {
+	length := z.zsl.length
 
-	length := int64(z.zsl.length)
-	results := make([]interface{}, 0)
+	start, stop = adjustRangeIndecies(start, stop, int64(length))
+	if start > stop {
+		return []interface{}{}
+	}
 
+	span := (stop - start) + 1
+	result := make([]interface{}, 0, span*2)
+
+	var currentNode *zslNode
+
+	if reverseEnabled {
+		currentNode = z.zsl.tail
+		if start > 0 {
+			currentNode = z.zsl.getNodeByRank(length - uint64(start))
+		}
+	} else {
+		currentNode = z.zsl.head.level[0].forward
+		if start > 0 {
+			currentNode = z.zsl.getNodeByRank(uint64(start + 1))
+		}
+	}
+
+	for span > 0 && currentNode != nil {
+		span--
+		if scoresEnabled {
+			result = append(result, currentNode.member, currentNode.score)
+		} else {
+			result = append(result, currentNode.member)
+		}
+
+		if reverseEnabled {
+			currentNode = currentNode.backwards
+		} else {
+			currentNode = currentNode.level[0].forward
+		}
+	}
+
+	return result
+
+}
+
+func adjustRangeIndecies(start, stop, length int64) (adjustedStart, adjustedStop int64) {
 	if start < 0 {
 		start += length
 		if start < 0 {
@@ -599,28 +639,18 @@ func (z *zset) findRange(key string, start, stop int64, reverse, scoresEnabled b
 		stop += length
 	}
 
-	if start > stop || start >= length {
-		return results
+	adjustedStart = start
+	adjustedStop = stop
+
+	if adjustedStart >= length || adjustedStop < 0 || adjustedStart > adjustedStop {
+		adjustedStart, adjustedStop = 0, -1
 	}
 
-	// Calculate the number of elements to fetch
-	span := (stop - start) + 1
-	node := z.getStartNode(start, reverse)
-
-	// Fetch the elements
-	for span > 0 {
-		if scoresEnabled {
-			results = append(results, node.member, node.score)
-		} else {
-			results = append(results, node.member)
-		}
-
-		span--
-		node = z.getNextNode(node, reverse)
+	if adjustedStop >= length {
+		adjustedStop = length - 1
 	}
 
-	return results
-
+	return adjustedStart, adjustedStop
 }
 
 // getStartNode retrieves the starting node for a given rank.
