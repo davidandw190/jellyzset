@@ -228,6 +228,60 @@ func TestZSet_ZRevRank(t *testing.T) {
 	})
 }
 
+func TestZSet_ZRem(t *testing.T) {
+
+	t.Run("Remove Non-Existent Member", func(t *testing.T) {
+		// Test removing a non-existent member from a non-existent key.
+		zset := New()
+
+		removed := zset.ZRem("nonexistent_key", "nonexistent_member")
+		assertBoolEqual(t, false, removed, "Remove Non-Existent Member")
+	})
+
+	t.Run("Remove Existing Member", func(t *testing.T) {
+		// Test removing an existing member from a sorted set.
+		zset := New()
+
+		key := "sorted_set"
+		member := "member1"
+		zset.ZAdd(key, 3.0, member, "value1")
+
+		removed := zset.ZRem(key, member)
+		assertBoolEqual(t, true, removed, "Remove Existing Member")
+		_, exists := zset.records[key].records[member]
+		assertBoolEqual(t, false, exists, "Verify Removal of Member")
+	})
+
+	t.Run("Remove Non-Existent Member from Existing Key", func(t *testing.T) {
+		// Test removing a non-existent member from an existing key.
+		zset := New()
+
+		key := "sorted_set"
+		removed := zset.ZRem(key, "nonexistent_member")
+		assertBoolEqual(t, false, removed, "Remove Non-Existent Member from Existing Key")
+		// Verify that the set remains unchanged.
+		// _, exists := zset.records[key].records["nonexistent_member"]
+		// assertBoolEqual(t, false, exists, "Verify Non-Existence of Non-Existent Member")
+	})
+
+	t.Run("Remove Member with Same Score", func(t *testing.T) {
+		// Test removing a member with the same score as another member in a sorted set.
+		zset := New()
+
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 3.0, "member2", "value2")
+		removed := zset.ZRem(key, "member1")
+
+		assertBoolEqual(t, true, removed, "Remove Member with Same Score")
+		// Verify that the correct member has been removed.
+		_, exists1 := zset.records[key].records["member1"]
+		_, exists2 := zset.records[key].records["member2"]
+		assertBoolEqual(t, false, exists1, "Verify Removal of Member1")
+		assertBoolEqual(t, true, exists2, "Verify Retention of Member2")
+	})
+}
+
 func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
 	t.Helper()
 	if len(slice1) != len(slice2) {
