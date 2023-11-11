@@ -286,7 +286,7 @@ func (z *ZSet) ZRem(key, member string) bool {
 		return true
 	}
 
-	return true
+	return false
 }
 
 // ZRevScoreRange returns all the elements in the sorted set at the given key with scores falling within the range [max, min].

@@ -227,6 +227,29 @@ func TestZSet_ZRevRank(t *testing.T) {
 		assertIntEqual(t, 2, revRank2, "Reverse Rank of Member2")
 		assertIntEqual(t, 0, revRank3, "Reverse Rank of Member3")
 	})
+
+	t.Run("RevRank Non-Existent Key", func(t *testing.T) {
+		// Test getting reverse rank for a non-existent key.
+		revRank := zset.ZRevRank("nonexistent_key", "member1")
+		assertInt64Equal(t, -1, revRank, "RevRank Non-Existent Key")
+	})
+
+	t.Run("RevRank Non-Existent Member", func(t *testing.T) {
+		// Test getting reverse rank for a non-existent member in an existing key.
+		key := "sorted_set"
+		revRank := zset.ZRevRank(key, "nonexistent_member")
+		assertInt64Equal(t, -1, revRank, "RevRank Non-Existent Member")
+	})
+
+	t.Run("RevRank Multiple Members", func(t *testing.T) {
+		// Test getting reverse rank for a sorted set with multiple members.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 4.0, "member3", "value3")
+		revRank := zset.ZRevRank(key, "member2")
+		assertInt64Equal(t, 2, revRank, "RevRank Multiple Members")
+	})
 }
 
 func TestZSet_ZRem(t *testing.T) {
@@ -281,6 +304,34 @@ func TestZSet_ZRem(t *testing.T) {
 		assertBoolEqual(t, false, exists1, "Verify Removal of Member1")
 		assertBoolEqual(t, true, exists2, "Verify Retention of Member2")
 	})
+
+	t.Run("Remove Last Member", func(t *testing.T) {
+		// Test removing the last member from a sorted set.
+		zset := New()
+
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		removed := zset.ZRem(key, "member1")
+		assertBoolEqual(t, true, removed, "Remove Last Member")
+		_, exists := zset.records[key]
+		assertBoolEqual(t, false, exists, "Verify Empty Set")
+	})
+
+	t.Run("Remove Non-Existent Member with Same Score", func(t *testing.T) {
+		// Test removing a non-existent member with the same score as another member in a sorted set.
+		zset := New()
+
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 3.0, "member2", "value2")
+		removed := zset.ZRem(key, "nonexistent_member")
+		assertBoolEqual(t, false, removed, "Remove Non-Existent Member with Same Score")
+		// Verify that the set remains unchanged.
+		_, exists1 := zset.records[key].records["member1"]
+		_, exists2 := zset.records[key].records["member2"]
+		assertBoolEqual(t, true, exists1, "Verify Retention of Member1")
+		assertBoolEqual(t, true, exists2, "Verify Retention of Member2")
+	})
 }
 
 func TestZSet_ZRevScoreRange(t *testing.T) {
@@ -309,7 +360,6 @@ func TestZSet_ZRevScoreRange(t *testing.T) {
 
 	t.Run("RevScoreRange Single Member", func(t *testing.T) {
 		// Test getting a reverse score range for a sorted set with a single member.
-		zset = New()
 		key := "sorted_set"
 		zset.ZAdd(key, 3.0, "member1", "value1")
 		result := zset.ZRevScoreRange(key, 5.0, 0.0)
@@ -318,7 +368,6 @@ func TestZSet_ZRevScoreRange(t *testing.T) {
 
 	t.Run("RevScoreRange Multiple Members", func(t *testing.T) {
 		// Test getting a reverse score range for a sorted set with multiple members.
-		zset = New()
 		key := "sorted_set"
 		zset.ZAdd(key, 3.0, "member1", "value1")
 		zset.ZAdd(key, 2.5, "member2", "value2")
@@ -344,6 +393,13 @@ func assertCountEqual(t *testing.T, expected, actual int, message string) {
 }
 
 func assertIntEqual(t *testing.T, expected, actual int64, message string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: Expected %d, got %d", message, expected, actual)
+	}
+}
+
+func assertInt64Equal(t *testing.T, expected, actual int64, message string) {
 	t.Helper()
 	if actual != expected {
 		t.Errorf("%s: Expected %d, got %d", message, expected, actual)
