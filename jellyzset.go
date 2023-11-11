@@ -447,7 +447,7 @@ func (z *ZSet) ZRange(key string, start, stop int) []interface{} {
 		return []interface{}{}
 	}
 
-	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, false)
+	return z.records[key].findRange(key, int64(start), int64(stop), false, false)
 }
 
 // ZRangeWithScore returns a range of elements with scores from the sorted set at the given key.
@@ -478,7 +478,7 @@ func (z *ZSet) ZRangeWithScore(key string, start, stop int) []interface{} {
 		return []interface{}{}
 	}
 
-	return z.records[key].findRangeByIndex(int64(start), int64(stop), false, true)
+	return z.records[key].findRange(key, int64(start), int64(stop), false, true)
 }
 
 // ZRevRange returns a range of elements in reverse order from the sorted set at the given key.
@@ -508,7 +508,7 @@ func (z *ZSet) ZRevRange(key string, start, stop int) []interface{} {
 		return []interface{}{}
 	}
 
-	return z.records[key].findRangeByIndex(int64(start), int64(stop), true, false)
+	return z.records[key].findRange(key, int64(start), int64(stop), true, false)
 }
 
 // ZRevRangeWithScore returns a range of elements with scores in reverse order from the sorted set at the given key.
@@ -539,7 +539,7 @@ func (z *ZSet) ZRevRangeWithScore(key string, start, stop int) []interface{} {
 		return nil
 	}
 
-	return z.records[key].findRangeByIndex(int64(start), int64(stop), true, true)
+	return z.records[key].findRange(key, int64(start), int64(stop), true, true)
 }
 
 // getRandomLevel returns a random level for a skip list node.
@@ -561,9 +561,7 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 
 	currentNode := z.head
 
-	// Traverse the levels of the skip list
 	for level := z.level - 1; level >= 0; level-- {
-		// Initialize rank and update node information
 		if level == z.level-1 {
 			rankValues[level] = 0
 		} else {
@@ -581,10 +579,8 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 		updateNodes[level] = currentNode
 	}
 
-	// Generate a random level for the new node
 	newNodeLevel := getRandomLevel()
 
-	// Add a new level if needed
 	if newNodeLevel > z.level {
 		for i := z.level; i < newNodeLevel; i++ {
 			rankValues[i] = 0
@@ -594,10 +590,8 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 		z.level = newNodeLevel
 	}
 
-	// Create a new node
 	newNode := createNode(newNodeLevel, score, member, value)
 
-	// Insert the new node according to the update nodes and rank values
 	for level := 0; level < newNodeLevel; level++ {
 		newNode.level[level].forward = updateNodes[level].level[level].forward
 		updateNodes[level].level[level].forward = newNode
@@ -606,12 +600,10 @@ func (z *zskiplist) insert(score float64, member string, value interface{}) *zsl
 		updateNodes[level].level[level].span = (rankValues[0] - rankValues[level]) + 1
 	}
 
-	// Increment span for untouched levels
 	for level := newNodeLevel; level < z.level; level++ {
 		updateNodes[level].level[level].span++
 	}
 
-	// Update the backward and forward pointers
 	if updateNodes[0] == z.head {
 		newNode.backwards = nil
 	} else {
@@ -701,16 +693,16 @@ func (z *zskiplist) delete(score float64, member string) {
 }
 
 // getNodeByRank returns the node in the skip list at the specified rank.
-func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
-	if rank == 0 || rank > z.length {
+func (zsl *zskiplist) getNodeByRank(rank uint64) *zslNode {
+	if rank == 0 || rank > zsl.length {
 		return nil
 	}
 
 	var traversed uint64
-	currentNode := z.head
+	currentNode := zsl.head
 
-	for level := z.level - 1; level >= 0; level-- {
-		for (currentNode.level[level].forward != nil) && (traversed+currentNode.level[level].span <= rank) {
+	for level := zsl.level - 1; level >= 0; level-- {
+		for currentNodeHasForward(currentNode, level) && traversed+currentNode.level[level].span <= rank {
 			traversed += currentNode.level[level].span
 			currentNode = currentNode.level[level].forward
 		}
@@ -728,48 +720,70 @@ func (z *zskiplist) getNodeByRank(rank uint64) *zslNode {
 // If 'reverseEnabled' is true, it fetches the elements in reverse order.
 // If 'scoresEnabled' is true, the results will include scores along with members.
 // The function returns a slice of interfaces containing the selected elements.
-func (z *zset) findRangeByIndex(start, stop int64, reverseEnabled, scoresEnabled bool) []interface{} {
-	length := z.zsl.length
+func (zset *zset) findRange(key string, start, stop int64, reverse, withScores bool) (result []interface{}) {
+	length := zset.zsl.length
 
-	start, stop = adjustRangeIndecies(start, stop, int64(length))
+	start = adjustRange(start, int64(length))
+	stop = adjustRange(stop, int64(length))
+
 	if start > stop {
-		return []interface{}{}
+		return
 	}
 
-	span := (stop - start) + 1
-	result := make([]interface{}, 0, span*2)
+	span := stop - start + 1
+	node := getStartNode(zset.zsl, start, reverse)
 
-	var currentNode *zslNode
-
-	if reverseEnabled {
-		currentNode = z.zsl.tail
-		if start > 0 {
-			currentNode = z.zsl.getNodeByRank(length - uint64(start))
-		}
-	} else {
-		currentNode = z.zsl.head.level[0].forward
-		if start > 0 {
-			currentNode = z.zsl.getNodeByRank(uint64(start + 1))
-		}
-	}
-
-	for span > 0 && currentNode != nil {
+	for span > 0 {
 		span--
-		if scoresEnabled {
-			result = append(result, currentNode.member, currentNode.score)
+		if withScores {
+			result = append(result, node.member, node.score)
 		} else {
-			result = append(result, currentNode.member)
+			result = append(result, node.member)
 		}
-
-		if reverseEnabled {
-			currentNode = currentNode.backwards
-		} else {
-			currentNode = currentNode.level[0].forward
-		}
+		node = getNextNode(node, reverse)
 	}
 
 	return result
+}
 
+// Helper function to adjust range values
+func adjustRange(value, length int64) int64 {
+	if value < 0 {
+		value += length
+		if value < 0 {
+			value = 0
+		}
+	}
+	return value
+}
+
+// Helper function to get the starting node in reverse order for findRange
+func getStartNode(zsl *zskiplist, start int64, reverse bool) *zslNode {
+	if reverse {
+		return getReverseStartNode(zsl, start)
+	}
+	return zsl.head.level[0].forward
+}
+
+// Helper function to get the next node for findRange
+func getNextNode(node *zslNode, reverse bool) *zslNode {
+	if reverse {
+		return node.backwards
+	}
+	return node.level[0].forward
+}
+
+// Helper function to check if the current node has a forward node at a given level
+func currentNodeHasForward(node *zslNode, level int) bool {
+	return node.level[level].forward != nil
+}
+
+func getReverseStartNode(zsl *zskiplist, start int64) *zslNode {
+	node := zsl.tail
+	if start > 0 {
+		node = zsl.getNodeByRank(zsl.length - uint64(start))
+	}
+	return node
 }
 
 func adjustRangeIndecies(start, stop, length int64) (adjustedStart, adjustedStop int64) {

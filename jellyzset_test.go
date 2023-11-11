@@ -1,6 +1,7 @@
 package jellyzset
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -282,25 +283,57 @@ func TestZSet_ZRem(t *testing.T) {
 	})
 }
 
-func slicesEqualIgnoreOrder(t *testing.T, slice1, slice2 []interface{}) bool {
-	t.Helper()
-	if len(slice1) != len(slice2) {
-		return false
-	}
+func TestZSet_ZRevScoreRange(t *testing.T) {
+	zset := New()
 
-	matched := make(map[interface{}]bool)
+	t.Run("RevScoreRange Non-Existent Key", func(t *testing.T) {
+		// Test getting a reverse score range for a non-existent key.
+		expected := []interface{}{}
+		result := zset.ZRevScoreRange("nonexistent_key", 5.0, 0.0)
 
-	for _, item := range slice1 {
-		matched[item] = true
-	}
-
-	for _, item := range slice2 {
-		if !matched[item] {
-			return false
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
 		}
-	}
+	})
 
-	return true
+	t.Run("RevScoreRange Empty Slice", func(t *testing.T) {
+		// Test getting a reverse score range for an existing key with an empty sorted set.
+		key := "sorted_set"
+		expected := []interface{}{}
+		result := zset.ZRevScoreRange(key, 4.0, 2.0)
+
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("RevScoreRange Single Member", func(t *testing.T) {
+		// Test getting a reverse score range for a sorted set with a single member.
+		zset = New()
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		result := zset.ZRevScoreRange(key, 5.0, 0.0)
+		assertSliceEqual(t, []interface{}{"member1", 3.0}, result, "RevScoreRange Single Member")
+	})
+
+	t.Run("RevScoreRange Multiple Members", func(t *testing.T) {
+		// Test getting a reverse score range for a sorted set with multiple members.
+		zset = New()
+		key := "sorted_set"
+		zset.ZAdd(key, 3.0, "member1", "value1")
+		zset.ZAdd(key, 2.5, "member2", "value2")
+		zset.ZAdd(key, 4.0, "member3", "value3")
+		result := zset.ZRevScoreRange(key, 4.0, 2.0)
+		assertSliceEqual(t, []interface{}{"member3", 4.0, "member1", 3.0, "member2", 2.5}, result, "RevScoreRange Multiple Members")
+	})
+
+}
+
+func assertSliceEqual(t *testing.T, expected, actual []interface{}, message string) {
+	t.Helper()
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("%s: Expected %v, got %v", message, expected, actual)
+	}
 }
 
 func assertCountEqual(t *testing.T, expected, actual int, message string) {
@@ -328,6 +361,13 @@ func assertFloatEqual(t *testing.T, expected, actual float64, message string) {
 	t.Helper()
 	if actual != expected {
 		t.Errorf("%s: Expected %f, got %f", message, expected, actual)
+	}
+}
+
+func assertNil(t *testing.T, actual interface{}, message string) {
+	t.Helper()
+	if actual != nil {
+		t.Errorf("%s: Expected nil, got %v", message, actual)
 	}
 }
 
