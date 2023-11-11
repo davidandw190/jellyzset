@@ -334,6 +334,83 @@ func TestZSet_ZRem(t *testing.T) {
 	})
 }
 
+func TestZSet_ZScoreRange(t *testing.T) {
+	zset := New()
+
+	t.Run("ScoreRange Non-Existent Key", func(t *testing.T) {
+		// Test retrieving score range for a non-existent key.
+
+		result := zset.ZScoreRange("nonexistent_key", 2.0, 4.0)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ScoreRange Key Exists, No Elements in Range", func(t *testing.T) {
+		// Test retrieving score range for an existing key with no elements in the specified range.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+
+		result := zset.ZScoreRange(key, 4.0, 5.0)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ScoreRange Key Exists, Elements in Range", func(t *testing.T) {
+		// Test retrieving score range for an existing key with elements in the specified range.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.5, "member2", "value2")
+		zset.ZAdd(key, 4.2, "member3", "value3")
+		result := zset.ZScoreRange(key, 2.4, 4.0)
+		expected := []interface{}{
+			"member2", 2.5,
+			"member1", 3.5,
+		}
+		assertSliceEqual(t, expected, result, "ScoreRange Key Exists, Elements in Range")
+	})
+
+	t.Run("ScoreRange Key Exists, Min > Max", func(t *testing.T) {
+		// Test retrieving score range for an existing key with min score greater than max score.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 4.2, "member3", "value3")
+		result := zset.ZScoreRange(key, 4.0, 2.5)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ScoreRange Out of Bounds", func(t *testing.T) {
+		// Test score range with bounds outside the available scores.
+		zset.ZAdd("set2", 3.5, "member1", "value1")
+
+		// Scores are 3.5, so the range 1.0 to 2.0 is out of bounds.
+		result := zset.ZScoreRange("set2", 1.0, 2.0)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ScoreRange Reversed Bounds", func(t *testing.T) {
+		// Test score range with reversed bounds (min > max).
+		zset.ZAdd("set3", 3.5, "member1", "value1")
+
+		// Reversed bounds should result in an empty slice.
+		result := zset.ZScoreRange("set3", 2.0, 1.0)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+}
+
 func TestZSet_ZRevScoreRange(t *testing.T) {
 	zset := New()
 

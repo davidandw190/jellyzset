@@ -289,29 +289,28 @@ func (z *ZSet) ZRem(key, member string) bool {
 	return false
 }
 
-// ZRevScoreRange returns all the elements in the sorted set at the given key with scores falling within the range [max, min].
+// ZScoreRange retrieves a range of elements with scores within the specified range from the sorted set stored at the given key.
 //
-// This function returns elements ordered from high to low scores within the specified range, including elements with scores equal to max or min.
-//
-// If the key does not exist or if the provided max score is less than the min score, the function returns an empty slice.
+// If the key does not exist or the provided minimum score is greater than the maximum score, it returns nil.
 //
 // Parameters:
-//   - key: The key associated with the sorted set.
-//   - max: The maximum score for the range.
-//   - min: The minimum score for the range.
+//   - key:  The key associated with the sorted set.
+//   - min:  The minimum score of the range (inclusive).
+//   - max:  The maximum score of the range (inclusive).
 //
 // Returns:
-//   - A slice of interfaces containing elements with scores within the specified range, ordered from high to low scores.
+//   - A slice of interfaces containing elements with scores within the specified range.
+//   - The slice is empty if there are no elements within the range or if the key does not exist.
 //
 // Example:
 //
 //	zset := jellyzset.New()
 //	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
 //	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
-//	zset.ZAdd("mySortedSet", 4.0, "member3", "value3")
-//	result := zset.ZRevScoreRange("mySortedSet", 4.0, 2.0)
+//	zset.ZAdd("mySortedSet", 4.2, "member3", "value3")
+//	results := zset.ZScoreRange("mySortedSet", 2.5, 4.0)
 //
-// In this example, we create a sorted set "mySortedSet" and add three members with different scores. ZRevScoreRange is used to retrieve elements within the score range [4.0, 2.0]. The result will be a slice containing the elements "member3" with a score of 4.0 and "member2" with a score of 2.0, ordered from high to low scores.
+// In this example, we create a sorted set "mySortedSet" and add three members. ZScoreRange is then used to retrieve elements within the score range of 2.5 to 4.0, and the results slice will contain the elements "member1" and "member2" with their respective scores.
 func (z *ZSet) ZScoreRange(key string, min, max float64) []interface{} {
 	if _, exists := z.records[key]; !exists || min > max {
 		return nil
