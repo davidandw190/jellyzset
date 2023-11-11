@@ -455,6 +455,66 @@ func TestZSet_ZRevScoreRange(t *testing.T) {
 
 }
 
+func TestZSet_ZKeys(t *testing.T) {
+	zset := New()
+
+	t.Run("Keys Empty ZSet", func(t *testing.T) {
+		// Test getting keys from an empty ZSet.
+		keys := zset.ZKeys()
+		if len(keys) != 0 {
+			t.Errorf("Expected %v but got %v", 0, keys)
+		}
+	})
+
+	t.Run("Keys Non-Empty ZSet", func(t *testing.T) {
+		// Test getting keys from a non-empty ZSet.
+		zset.ZAdd("set1", 3.5, "member1", "value1")
+		zset.ZAdd("set2", 2.0, "member2", "value2")
+		keys := zset.ZKeys()
+		expected := []string{"set1", "set2"}
+
+		if len(expected) != len(keys) {
+			t.Errorf("Expected %v but got %v", expected, keys)
+		}
+	})
+
+	t.Run("Keys After Clear", func(t *testing.T) {
+		// Test getting keys after clearing the ZSet.
+		zset.ZAdd("set1", 3.5, "member1", "value1")
+		zset.ZAdd("set2", 2.0, "member2", "value2")
+		zset.ZClear("set1")
+		keys := zset.ZKeys()
+		expected := []string{"set2"}
+		if len(expected) != len(keys) {
+			t.Errorf("Expected %v but got %v", expected, keys)
+		}
+	})
+}
+
+func TestZSet_ZClear(t *testing.T) {
+	zset := New()
+
+	t.Run("Clear Non-Existent Key", func(t *testing.T) {
+		// Test clearing a non-existent key.
+		keys := zset.ZKeys()
+		if len(keys) != 0 {
+			t.Errorf("Expected %v but got %v", 0, keys)
+		}
+	})
+
+	t.Run("Clear Existing Key", func(t *testing.T) {
+		// Test clearing an existing key.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZClear(key)
+		keys := zset.ZKeys()
+		if len(keys) != 0 {
+			t.Errorf("Expected %v but got %v", 0, keys)
+		}
+	})
+}
+
 func assertSliceEqual(t *testing.T, expected, actual []interface{}, message string) {
 	t.Helper()
 	if !reflect.DeepEqual(actual, expected) {
