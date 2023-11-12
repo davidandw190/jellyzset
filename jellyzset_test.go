@@ -5,6 +5,80 @@ import (
 	"testing"
 )
 
+func TestZSet_FindRange(t *testing.T) {
+	zset := New()
+
+	t.Run("FindRange Non-Existent Key", func(t *testing.T) {
+		// Test finding a range for a non-existent key.
+		nonExistentKey := "nonexistent_key"
+		if z, exists := zset.records[nonExistentKey]; exists {
+			result := z.findRange(nonExistentKey, 0, 1, false, false)
+			expected := []interface{}{}
+			if len(expected) != len(result) {
+				t.Errorf("Expected %v but got %v", expected, result)
+			}
+		}
+	})
+
+	t.Run("FindRange Existing Key", func(t *testing.T) {
+		// Test finding a range for an existing key.
+		zset.ZAdd("existing_key", 1.0, "member1", nil)
+		zset.ZAdd("existing_key", 2.0, "member2", nil)
+		zset.ZAdd("existing_key", 3.0, "member3", nil)
+
+		result := zset.records["existing_key"].findRange("existing_key", 0, 2, false, false)
+		expected := []interface{}{"member1", "member2", "member3"}
+		if !reflect.DeepEqual(expected, result) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("FindRange Reverse Order", func(t *testing.T) {
+		// Test finding a range in reverse order.
+		zset.ZAdd("reverse_key", 1.0, "member1", nil)
+		zset.ZAdd("reverse_key", 2.0, "member2", nil)
+		zset.ZAdd("reverse_key", 3.0, "member3", nil)
+
+		result := zset.records["reverse_key"].findRange("reverse_key", 0, 2, true, false)
+		expected := []interface{}{"member3", "member2", "member1"}
+		if !reflect.DeepEqual(expected, result) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("FindRange With Scores", func(t *testing.T) {
+		// Test finding a range with scores.
+		zset.ZAdd("score_key", 1.0, "member1", nil)
+		zset.ZAdd("score_key", 2.0, "member2", nil)
+		zset.ZAdd("score_key", 3.0, "member3", nil)
+
+		result := zset.records["score_key"].findRange("score_key", 0, 2, false, true)
+		expected := []interface{}{"member1", 1.0, "member2", 2.0, "member3", 3.0}
+		if !reflect.DeepEqual(expected, result) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("FindRange With Exclusions", func(t *testing.T) {
+		// Test finding a range with exclusions.
+		zset.ZAdd("exclusion_key", 1.0, "member1", nil)
+		zset.ZAdd("exclusion_key", 2.0, "member2", nil)
+		zset.ZAdd("exclusion_key", 3.0, "member3", nil)
+
+		result1 := zset.records["exclusion_key"].findRange("exclusion_key", 0, 2, false, false)
+		expected1 := []interface{}{"member1", "member2", "member3"}
+		if !reflect.DeepEqual(expected1, result1) {
+			t.Errorf("Expected %v but got %v", expected1, result1)
+		}
+
+		result2 := zset.records["exclusion_key"].findRange("exclusion_key", 0, 2, false, false)
+		expected2 := []interface{}{"member1", "member2", "member3"}
+		if !reflect.DeepEqual(expected2, result2) {
+			t.Errorf("Expected %v but got %v", expected2, result2)
+		}
+	})
+}
+
 func TestZSet_ZAdd(t *testing.T) {
 	zset := New()
 
@@ -488,6 +562,24 @@ func TestZSet_ZKeys(t *testing.T) {
 		if len(expected) != len(keys) {
 			t.Errorf("Expected %v but got %v", expected, keys)
 		}
+	})
+}
+
+func TestZSet_ZKeyExists(t *testing.T) {
+	zset := New()
+
+	t.Run("KeyExists Non-Existent Key", func(t *testing.T) {
+		// Test checking existence of a non-existent key.
+		exists := zset.ZKeyExists("nonexistant_key")
+		assertBoolEqual(t, false, exists, "KeyExists Non-Existent Key")
+	})
+
+	t.Run("KeyExists Existing Key", func(t *testing.T) {
+		// Test checking existence of an existing key.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		exists := zset.ZKeyExists(key)
+		assertBoolEqual(t, true, exists, "KeyExists Existing Key")
 	})
 }
 
