@@ -542,6 +542,67 @@ func (z *ZSet) ZRevRangeWithScore(key string, start, stop int) []interface{} {
 	return z.records[key].findRange(key, int64(start), int64(stop), true, true)
 }
 
+// ZRetrieveByRank retrieves the member and score at the specified rank from the sorted set stored at the given key.
+//
+// If the key does not exist or the provided rank is out of bounds, it returns an empty slice.
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - rank:  The rank of the member to retrieve (0-based).
+//
+// Returns:
+//   - A slice of interfaces containing the member and score at the specified rank.
+//   - The slice is empty if the key does not exist or if the rank is out of bounds.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	result := zset.ZRetrieveByRank("mySortedSet", 0)
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZRetrieveByRank is then used to retrieve the member and score at rank 0, resulting in the slice ["member2", 2.0].
+func (z *ZSet) ZRetrieveByRank(key string, rank int) []interface{} {
+	zset, exists := z.records[key]
+	if !exists {
+		return []interface{}{}
+	}
+
+	member, score := zset.getNodeByRank(key, int64(rank), false)
+	return []interface{}{member, score}
+}
+
+// ZRevRetrieveByRank retrieves the member and score at the specified reverse rank from the sorted set stored at the given key.
+//
+// If the key does not exist or the provided rank is out of bounds, it returns an empty slice.
+//
+// Parameters:
+//   - key:   The key associated with the sorted set.
+//   - rank:  The reverse rank of the member to retrieve (0-based).
+//
+// Returns:
+//   - A slice of interfaces containing the member and score at the specified reverse rank.
+//   - The slice is empty if the key does not exist or if the rank is out of bounds.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	result := zset.ZRevRetrieveByRank("mySortedSet", 0)
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZRevRetrieveByRank is then used to retrieve the member and score at reverse rank 0, resulting in the slice ["member1", 3.5].
+func (z *ZSet) ZRevRetrieveByRank(key string, rank int) []interface{} {
+	zset, exists := z.records[key]
+	if !exists {
+		return []interface{}{}
+	}
+
+	member, score := zset.getNodeByRank(key, int64(rank), true)
+	return []interface{}{member, score}
+
+}
+
 // getRandomLevel returns a random level for a skip list node.
 func getRandomLevel() int {
 	level := 1
