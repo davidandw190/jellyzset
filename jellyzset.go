@@ -1,6 +1,7 @@
 package jellyzset
 
 import (
+	"math"
 	"math/rand"
 )
 
@@ -689,6 +690,31 @@ func (z *zskiplist) delete(score float64, member string) {
 	if currentNode != nil && currentNode.score == score && currentNode.member == member {
 		z.deleteNode(currentNode, updates)
 	}
+}
+
+func (z *zset) getNodeByRank(key string, rank int64, reverse bool) (string, float64) {
+	if rank < 0 || rank > int64(z.zsl.length) {
+		return "", math.MinInt64
+	}
+
+	if reverse {
+		rank = int64(z.zsl.length) - rank
+	} else {
+		rank++
+	}
+
+	n := z.zsl.getNodeByRank(uint64(rank))
+	if n == nil {
+		return "", math.MinInt64
+	}
+
+	node := z.records[n.member]
+	if node == nil {
+		return "", math.MinInt64
+	}
+
+	return node.member, node.score
+
 }
 
 // getNodeByRank returns the node in the skip list at the specified rank.
