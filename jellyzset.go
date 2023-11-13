@@ -1,6 +1,7 @@
 package jellyzset
 
 import (
+	"errors"
 	"math"
 	"math/rand"
 )
@@ -599,8 +600,76 @@ func (z *ZSet) ZRevRetrieveByRank(key string, rank int) []interface{} {
 	}
 
 	member, score := zset.getNodeByRank(key, int64(rank), true)
-	return []interface{}{member, score}
 
+	return []interface{}{member, score}
+}
+
+// ZPopMin retrieves and removes the member with the lowest score from the sorted set stored at the given key.
+//
+// If the key does not exist or the sorted set is empty, it returns (nil, errors.New("key does not exist")).
+//
+// Parameters:
+//   - key: The key associated with the sorted set.
+//
+// Returns:
+//   - A pointer to the zslNode containing information about the popped member and score.
+//   - An error if the key does not exist or the sorted set is empty.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	poppedNode, err := zset.ZPopMin("mySortedSet")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZPopMin is then used to retrieve and remove the member with the lowest score, resulting in the poppedNode containing information about "member2" and its score of 2.0.
+func (z *ZSet) ZPopMin(key string) (*zslNode, error) {
+	if !z.ZKeyExists(key) {
+		return nil, errors.New("key does not exist")
+	}
+
+	zset := z.records[key]
+	firstNode := zset.zsl.head.level[0].forward
+
+	if firstNode != nil {
+		z.ZRem(key, firstNode.member)
+	}
+
+	return firstNode, nil
+}
+
+// ZPopMax retrieves and removes the member with the highest score from the sorted set stored at the given key.
+//
+// If the key does not exist or the sorted set is empty, it returns (nil, errors.New("key does not exist")).
+//
+// Parameters:
+//   - key: The key associated with the sorted set.
+//
+// Returns:
+//   - A pointer to the zslNode containing information about the popped member and score.
+//   - An error if the key does not exist or the sorted set is empty.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	poppedNode, err := zset.ZPopMax("mySortedSet")
+//
+// In this example, we create a sorted set "mySortedSet" and add two members. ZPopMax is then used to retrieve and remove the member with the highest score, resulting in the poppedNode containing information about "member1" and its score of 3.5.
+func (z *ZSet) ZPopMax(key string) (*zslNode, error) {
+	if !z.ZKeyExists(key) {
+		return nil, errors.New("key does not exist")
+	}
+
+	zset := z.records[key]
+	lastNode := zset.zsl.tail
+
+	if lastNode != nil {
+		z.ZRem(key, lastNode.member)
+	}
+
+	return lastNode, nil
 }
 
 // getRandomLevel returns a random level for a skip list node.
