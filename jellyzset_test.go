@@ -487,6 +487,68 @@ func TestZSet_ZRange(t *testing.T) {
 	})
 }
 
+func TestZSet_ZRevRange(t *testing.T) {
+	// Create a new ZSet instance for testing.
+	zset := New()
+
+	t.Run("ZRevRange Non-Existent Key", func(t *testing.T) {
+		// Test retrieving a reverse range for a non-existent key.
+		result := zset.ZRevRange("nonexistent_key", 0, 1)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ZRevRange Key Exists, Start > Stop", func(t *testing.T) {
+		// Test retrieving a reverse range for an existing key with start greater than stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		result := zset.ZRevRange(key, 1, 0)
+		expected := []interface{}{"member1"}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ZRevRange Key Exists, Elements in Range", func(t *testing.T) {
+		// Test retrieving a reverse range for an existing key with elements in the specified range.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 4.0, "member3", "value3")
+		results := zset.ZRevRange(key, 0, 1)
+		expectedResults := []interface{}{
+			"member3",
+			"member1",
+		}
+		assertSliceEqual(t, expectedResults, results, "ZRevRange Key Exists, Elements in Range")
+	})
+
+	t.Run("ZRevRange Key Exists, Start Equals Stop", func(t *testing.T) {
+		// Test retrieving a reverse range for an existing key with start equals stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		results := zset.ZRevRange(key, 1, 1)
+		expectedResults := []interface{}{"member2"}
+		assertSliceEqual(t, expectedResults, results, "ZRevRange Key Exists, Start Equals Stop")
+	})
+
+	t.Run("ZRevRange Key Exists, Negative Start and Stop", func(t *testing.T) {
+		// Test retrieving a reverse range for an existing key with negative start and stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		result := zset.ZRevRange(key, -1, -1)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+}
+
 func TestZSet_ZScoreRange(t *testing.T) {
 	zset := New()
 
