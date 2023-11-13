@@ -408,6 +408,85 @@ func TestZSet_ZRem(t *testing.T) {
 	})
 }
 
+func TestZSet_ZRange(t *testing.T) {
+	zset := New()
+
+	t.Run("ZRange Non-Existent Key", func(t *testing.T) {
+		// Test retrieving a range for a non-existent key.
+		result := zset.ZRange("nonexistent_key", 0, 1)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ZRange Key Exists, Start > Stop", func(t *testing.T) {
+		// Test retrieving a range for an existing key with start greater than stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		result := zset.ZRange(key, 1, 0)
+		expected := []interface{}{}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ZRange Key Exists, Elements in Range", func(t *testing.T) {
+		// Test retrieving a range for an existing key with elements in the specified range.
+		zset := New()
+
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		zset.ZAdd(key, 4.0, "member3", "value3")
+		zset.ZAdd(key, 2.2, "member4", "value4")
+		zset.ZAdd(key, 3.6, "member5", "value5")
+		results := zset.ZRange(key, 2, 2)
+		expectedResults := []interface{}{
+			"member1",
+		}
+		assertSliceEqual(t, expectedResults, results, "ZRange Key Exists, Elements in Range")
+	})
+
+	t.Run("ZRange Key Exists, Start Equals Stop", func(t *testing.T) {
+		// Test retrieving a range for an existing key with start equals stop.
+		zset := New()
+
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 5.0, "member2", "value2")
+		zset.ZAdd(key, 2.2, "member3", "value3")
+		zset.ZAdd(key, 4.2, "member4", "value4")
+		zset.ZAdd(key, 1.2, "member5", "value5")
+		results := zset.ZRange(key, 3, 3)
+		expectedResults := []interface{}{"member4"}
+		assertSliceEqual(t, expectedResults, results, "ZRange Key Exists, Start Equals Stop")
+	})
+
+	t.Run("ZRange Key Exists, Negative Start and Stop", func(t *testing.T) {
+		// Test retrieving a range for an existing key with negative start and stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		result := zset.ZRange(key, -1, 1)
+		expected := []interface{}{"member1"}
+		if len(result) != len(expected) {
+			t.Errorf("Expected %v but got %v", expected, result)
+		}
+	})
+
+	t.Run("ZRange Key Exists, Out of Bounds Start and Stop", func(t *testing.T) {
+		// Test retrieving a range for an existing key with out of bounds start and stop.
+		key := "sorted_set"
+		zset.ZAdd(key, 3.5, "member1", "value1")
+		zset.ZAdd(key, 2.0, "member2", "value2")
+		results := zset.ZRange(key, 0, 5)
+		expectedResults := []interface{}{"member2", "member1"}
+		assertSliceEqual(t, expectedResults, results, "ZRange Key Exists, Out of Bounds Start and Stop")
+	})
+}
+
 func TestZSet_ZScoreRange(t *testing.T) {
 	zset := New()
 

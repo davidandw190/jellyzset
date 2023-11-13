@@ -443,7 +443,7 @@ func (z *ZSet) ZKeys() []string {
 //
 // In this example, we create a sorted set "mySortedSet" and add three members. ZRange is used to retrieve elements within the range [0, 1]. The result will be a slice containing the elements "member2" and "member1".
 func (z *ZSet) ZRange(key string, start, stop int) []interface{} {
-	if !z.ZKeyExists(key) || start > stop {
+	if !z.ZKeyExists(key) {
 		return []interface{}{}
 	}
 
@@ -807,26 +807,26 @@ func (zsl *zskiplist) getNodeByRank(rank uint64) *zslNode {
 // If 'scoresEnabled' is true, the results will include scores along with members.
 // The function returns a slice of interfaces containing the selected elements.
 func (zset *zset) findRange(key string, start, stop int64, reverse, withScores bool) (result []interface{}) {
-	length := zset.zsl.length
+	length := int64(zset.zsl.length)
 
-	start = adjustRange(start, int64(length))
-	stop = adjustRange(stop, int64(length))
+	start = adjustRange(start, length)
+	stop = adjustRange(stop, length)
 
 	if start > stop {
 		return
 	}
 
 	span := stop - start + 1
-	node := getStartNode(zset.zsl, start, reverse)
+	node := zset.getStartNode(start, reverse)
 
-	for span > 0 {
+	for span > 0 && node != nil {
 		span--
 		if withScores {
 			result = append(result, node.member, node.score)
 		} else {
 			result = append(result, node.member)
 		}
-		node = getNextNode(node, reverse)
+		node = zset.getNextNode(node, reverse)
 	}
 
 	return result
