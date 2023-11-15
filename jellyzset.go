@@ -11,18 +11,21 @@ const (
 	SkipProbability = 0.25 // Probability for the skip list, 1/4
 )
 
-// ZSet represents a sorted set data structure with multiple records.
 type ZSet struct {
 	records map[string]*zset
 }
 
-// zset represents a single sorted set in the ZSet.
+type ZRangeConfig struct {
+	Limit        int
+	ExcludeStart bool
+	ExcludeEnd   bool
+}
+
 type zset struct {
 	records map[string]*zslNode
 	zsl     *zskiplist
 }
 
-// zskiplist represents the skip list structure for sorted sets.
 type zskiplist struct {
 	head   *zslNode
 	tail   *zslNode
@@ -30,7 +33,6 @@ type zskiplist struct {
 	level  int
 }
 
-// zslNode represents a node in the skip list.
 type zslNode struct {
 	member    string
 	value     interface{}
@@ -39,7 +41,6 @@ type zslNode struct {
 	level     []*zslLevel
 }
 
-// zslLevel represents a level in the skip list node.
 type zslLevel struct {
 	forward *zslNode
 	span    uint64
@@ -51,7 +52,6 @@ func New() *ZSet {
 	}
 }
 
-// createNode creates a new skip list node with the given parameters.
 func createNode(level int, score float64, member string, value interface{}) *zslNode {
 	newNode := &zslNode{
 		score:  score,
@@ -67,7 +67,6 @@ func createNode(level int, score float64, member string, value interface{}) *zsl
 	return newNode
 }
 
-// newZSkipList initializes and returns a new empty skip list.
 func newZSkipList() *zskiplist {
 	head := createNode(SkipListMaxLvl, 0, "", nil)
 	return &zskiplist{
@@ -670,6 +669,131 @@ func (z *ZSet) ZPopMax(key string) (*zslNode, error) {
 	}
 
 	return lastNode, nil
+}
+
+// ZRangeByScore retrieves elements with scores within the specified range from the sorted set stored at the given key.
+//
+// If the key does not exist, it returns an empty slice.
+//
+// Parameters:
+//   - key:     The key associated with the sorted set.
+//   - start:   The minimum score of the range (inclusive).
+//   - end:     The maximum score of the range (inclusive).
+//   - config:  Configuration options for the range query (optional).
+//
+// Returns:
+//   - A slice of pointers to zslNode containing information about elements within the specified score range.
+//   - The slice is empty if the key does not exist or if no elements are within the specified range.
+//
+// Example:
+//
+//	zset := jellyzset.New()
+//	zset.ZAdd("mySortedSet", 3.5, "member1", "value1")
+//	zset.ZAdd("mySortedSet", 2.0, "member2", "value2")
+//	zset.ZAdd("mySortedSet", 4.2, "member3", "value3")
+//	config := &ZRangeConfig{Limit: 2, ExcludeEnd: true}
+//	result := zset.ZRangeByScore("mySortedSet", 2.0, 4.0, config)
+//
+// In this example, we create a sorted set "mySortedSet" and add three members. ZRangeByScore is then used to retrieve elements within the score range of 2.0 to 4.0, excluding the end, and the result will contain pointers to zslNode for "member2" and "member1".
+func (z *ZSet) ZRangeByScore(key string, start, end float64, config *ZRangeConfig) []*zslNode {
+	result := []*zslNode{}
+	if z.ZKeyExists(key) {
+		return result
+	}
+
+	node := z.records[key]
+	zsl := node.zsl
+
+	limit := int(^uint(0) >> 1)
+	if config != nil && config.Limit > 0 {
+		limit = config.Limit
+	}
+
+	excludeStart, excludeEnd := false, false
+	if config != nil {
+		excludeStart, excludeEnd = config.ExcludeStart, config.ExcludeEnd
+	}
+
+	reverse := start > end
+	if reverse {
+		start, end = end, start
+		excludeStart, excludeEnd = excludeEnd, excludeStart
+	}
+
+	// Determine if out of range
+	if zsl.length == 0 {
+		return result
+	}
+
+	compare := func(a, b float64) bool {
+		if reverse {
+			return a > b
+		}
+		return a < b
+	}
+
+	updateNode := func(n *zslNode, level int) *zslNode {
+		for n.level[level].forward != nil && compare(n.level[level].forward.score, end) {
+			n = n.level[level].forward
+		}
+		return n
+	}
+
+	if reverse {
+		// Search from end to start
+		currentNode := zsl.head
+		if excludeEnd {
+			for level := zsl.level - 1; level >= 0; level-- {
+				currentNode = updateNode(currentNode, level)
+			}
+		} else {
+			for level := zsl.level - 1; level >= 0; level-- {
+				currentNode = updateNode(currentNode, level)
+			}
+		}
+
+		for currentNode != nil && limit > 0 {
+			if excludeStart && !compare(currentNode.score, start) {
+				break
+			}
+
+			nextNode := currentNode.backwards
+
+			result = append(result, currentNode)
+			limit--
+
+			currentNode = nextNode
+		}
+	} else {
+		// Search from start to end
+		currentNode := zsl.head
+		if excludeStart {
+			for level := zsl.level - 1; level >= 0; level-- {
+				currentNode = updateNode(currentNode, level)
+			}
+		} else {
+			for level := zsl.level - 1; level >= 0; level-- {
+				currentNode = updateNode(currentNode, level)
+			}
+		}
+
+		currentNode = currentNode.level[0].forward
+
+		for currentNode != nil && limit > 0 {
+			if excludeEnd && !compare(currentNode.score, end) {
+				break
+			}
+
+			nextNode := currentNode.level[0].forward
+
+			result = append(result, currentNode)
+			limit--
+
+			currentNode = nextNode
+		}
+	}
+
+	return result
 }
 
 // getRandomLevel returns a random level for a skip list node.
