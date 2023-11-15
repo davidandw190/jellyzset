@@ -1,5 +1,39 @@
 package jellyzset
 
+// Package jellyzset provides a high-performance implementation of a Redis-compatible ZSet (sorted set)
+// data structure in Go. This library is designed to efficiently manage ordered collections of elements
+// associated with scores, offering logarithmic-time complexity for key operations.
+//
+// Overview:
+//
+//	The jellyzset package employs a skip list-based indexing structure to optimize the insertion,
+//	deletion, and range query operations inherent to sorted sets. Each ZSet instance manages multiple
+//	sorted sets, uniquely identified by keys. The underlying skip list, represented by the zskiplist
+//	struct, serves as the backbone for quick and effective access to elements within a sorted set.
+//
+// Implementation Details:
+//   - The skip list dynamically balances itself, ensuring rapid insertion and deletion operations.
+//   - Element order is maintained based on scores, facilitating efficient range queries.
+//   - Skip list levels expedite searches, resulting in logarithmic time complexity for key operations.
+//
+// Credits/Resources:
+//
+//   - https://www.epaperpress.com/sortsearch/download/skiplist.pdf
+//
+//   - http://blog.wjin.org/posts/redis-internal-data-structure-skiplist.html
+//
+//   - https://developpaper.com/skip-list-lookup-tree-btree-in-redis-mysql/
+//
+//   - https://github.com/redis/redis/blob/unstable/src/server.h
+//
+//   - https://github.com/arriqaaq/zset
+//
+//   - https://github.com/redis/redis/blob/unstable/src/server.h
+//
+//   - https://www.youtube.com/watch?v=UGaOXaXAM5M
+//
+//   - https://www.youtube.com/watch?v=NDGpsfwAaqo
+
 import (
 	"errors"
 	"math"
@@ -11,21 +45,27 @@ const (
 	SkipProbability = 0.25 // Probability for the skip list, 1/4
 )
 
+// ZSet represents a collection of sorted sets, each identified by a unique key.
+// It uses a map to store references to individual sorted sets.
 type ZSet struct {
 	records map[string]*zset
 }
 
+// ZRangeConfig specifies the configuration for ZRangeByScore method to customize the range query.
 type ZRangeConfig struct {
-	Limit        int
-	ExcludeStart bool
-	ExcludeEnd   bool
+	Limit        int  // Limit the max nodes to be returned
+	ExcludeStart bool // Exclude start value, so it searches in the interval (start, end] or (start, end)
+	ExcludeEnd   bool // Exclude end value, so it searches in the interval [start, end) or (start, end)
 }
 
+// zset represents an individual sorted set in the ZSet data structure.
+// It contains references to the skip list and a map of elements.
 type zset struct {
 	records map[string]*zslNode
 	zsl     *zskiplist
 }
 
+// zskiplist is a skip list-based data structure used to maintain order in the sorted set.
 type zskiplist struct {
 	head   *zslNode
 	tail   *zslNode
@@ -33,6 +73,8 @@ type zskiplist struct {
 	level  int
 }
 
+// zslNode represents a node in the skip list, containing information about the element,
+// its score, and references to the next nodes in different levels.
 type zslNode struct {
 	member    string
 	value     interface{}
@@ -41,17 +83,22 @@ type zslNode struct {
 	level     []*zslLevel
 }
 
+// zslLevel represents a level in the skip list, containing references to the forward node and
+// the span, which is the number of elements between the current node and the next node in that level.
 type zslLevel struct {
 	forward *zslNode
 	span    uint64
 }
 
+// New creates a new instance of the ZSet data structure.
 func New() *ZSet {
 	return &ZSet{
 		make(map[string]*zset),
 	}
 }
 
+// createNode creates a new zslNode with the given parameters.
+// It initializes the levels based on the specified level.
 func createNode(level int, score float64, member string, value interface{}) *zslNode {
 	newNode := &zslNode{
 		score:  score,
@@ -67,6 +114,7 @@ func createNode(level int, score float64, member string, value interface{}) *zsl
 	return newNode
 }
 
+// newZSkipList creates a new instance of the zskiplist with an initial head node.
 func newZSkipList() *zskiplist {
 	head := createNode(SkipListMaxLvl, 0, "", nil)
 	return &zskiplist{
@@ -1036,59 +1084,9 @@ func adjustRange(value, length int64) int64 {
 	return value
 }
 
-// Helper function to get the starting node in reverse order for findRange
-func getStartNode(zsl *zskiplist, start int64, reverse bool) *zslNode {
-	if reverse {
-		return getReverseStartNode(zsl, start)
-	}
-	return zsl.head.level[0].forward
-}
-
-// Helper function to get the next node for findRange
-func getNextNode(node *zslNode, reverse bool) *zslNode {
-	if reverse {
-		return node.backwards
-	}
-	return node.level[0].forward
-}
-
 // Helper function to check if the current node has a forward node at a given level
 func currentNodeHasForward(node *zslNode, level int) bool {
 	return node.level[level].forward != nil
-}
-
-func getReverseStartNode(zsl *zskiplist, start int64) *zslNode {
-	node := zsl.tail
-	if start > 0 {
-		node = zsl.getNodeByRank(zsl.length - uint64(start))
-	}
-	return node
-}
-
-func adjustRangeIndecies(start, stop, length int64) (adjustedStart, adjustedStop int64) {
-	if start < 0 {
-		start += length
-		if start < 0 {
-			start = 0
-		}
-	}
-
-	if stop < 0 {
-		stop += length
-	}
-
-	adjustedStart = start
-	adjustedStop = stop
-
-	if adjustedStart >= length || adjustedStop < 0 || adjustedStart > adjustedStop {
-		adjustedStart, adjustedStop = 0, -1
-	}
-
-	if adjustedStop >= length {
-		adjustedStop = length - 1
-	}
-
-	return adjustedStart, adjustedStop
 }
 
 // getStartNode retrieves the starting node for a given rank.
